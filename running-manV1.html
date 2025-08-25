@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Running Man</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #222;
+        color: #fff;
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+      }
+      #menu,
+      #gameOver {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(34, 34, 34, 0.95);
+        z-index: 2;
+      }
+      #menu h1 {
+        font-size: 3em;
+        margin-bottom: 40px;
+        letter-spacing: 2px;
+      }
+      #menu button,
+      #gameOver button {
+        font-size: 1.5em;
+        padding: 15px 40px;
+        border: none;
+        border-radius: 8px;
+        background: #ff9800;
+        color: #fff;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      #menu button:hover,
+      #gameOver button:hover {
+        background: #e65100;
+      }
+      #gameOver h1 {
+        font-size: 4em;
+        font-weight: bold;
+        margin-bottom: 30px;
+        color: #ff5252;
+        text-shadow: 2px 2px 8px #000;
+      }
+      #scoreBar {
+        position: absolute;
+        top: 20px;
+        left: 30px;
+        font-size: 1.5em;
+        background: rgba(0, 0, 0, 0.4);
+        padding: 10px 20px;
+        border-radius: 10px;
+        z-index: 1;
+        min-width: 180px;
+      }
+      #scoreBar span {
+        display: block;
+        margin-top: 5px;
+        font-size: 1em;
+        color: #ffd54f;
+      }
+      canvas {
+        display: block;
+        margin: 0 auto;
+        background: #333;
+        box-shadow: 0 0 20px #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="menu">
+      <h1>Running Man</h1>
+      <button id="playBtn">Play</button>
+    </div>
+    <div id="scoreBar" style="display: none">
+      Score: <b id="score">0</b>
+      <span>High Score: <b id="highScore">0</b></span>
+    </div>
+    <canvas id="game" width="900" height="500" style="display: none"></canvas>
+    <div id="gameOver" style="display: none">
+      <h1>GAME OVER</h1>
+      <button id="restartBtn">Press R to Restart</button>
+    </div>
+    <script>
+      // DOM Elements
+      const menu = document.getElementById("menu");
+      const playBtn = document.getElementById("playBtn");
+      const gameOverDiv = document.getElementById("gameOver");
+      const restartBtn = document.getElementById("restartBtn");
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const scoreBar = document.getElementById("scoreBar");
+      const scoreEl = document.getElementById("score");
+      const highScoreEl = document.getElementById("highScore");
+
+      // Game State
+      let gameState = "menu"; // menu, playing, gameover
+      let score = 0;
+      let highScore = 0;
+      let player,
+        obstacles,
+        obstacleTimer,
+        groundY,
+        speed,
+        jumpState,
+        jumpTimer,
+        doubleJumpUsed;
+      let infiniteRectX, infiniteRectW;
+      let keys = {};
+
+      // Player constants
+      const PLAYER = {
+        x: 120,
+        y: 0, // will be set based on groundY
+        width: 30,
+        height: 60,
+        legW: 8,
+        legH: 30,
+        armW: 8,
+        armH: 28,
+        head: 24,
+      };
+
+      // Obstacle constants
+      const OBSTACLE = {
+        small: { w: 30, h: 60 },
+        big: { w: 30, h: 120 },
+      };
+
+      // Infinite rectangle (middle of map)
+      infiniteRectW = 40;
+      infiniteRectX = canvas.width / 2 - infiniteRectW / 2;
+
+      // Utility
+      function resetGameVars() {
+        groundY = canvas.height - 60;
+        speed = 6;
+        score = 0;
+        player = {
+          x: PLAYER.x,
+          y: groundY,
+          vy: 0,
+          onGround: true,
+        };
+        obstacles = [];
+        obstacleTimer = 0;
+        jumpState = 0; // 0: grounded, 1: jumping, 2: double jump
+        jumpTimer = 0;
+        doubleJumpUsed = false;
+      }
+
+      function drawPlayer(px, py) {
+        // Legs
+        ctx.fillStyle = "#90caf9";
+        ctx.fillRect(
+          px,
+          py + PLAYER.height - PLAYER.legH,
+          PLAYER.legW,
+          PLAYER.legH
+        ); // Left leg
+        ctx.fillRect(
+          px + PLAYER.width - PLAYER.legW,
+          py + PLAYER.height - PLAYER.legH,
+          PLAYER.legW,
+          PLAYER.legH
+        ); // Right leg
+        // Torso
+        ctx.fillStyle = "#1976d2";
+        ctx.fillRect(
+          px,
+          py + PLAYER.legH,
+          PLAYER.width,
+          PLAYER.height - PLAYER.legH * 2
+        );
+        // Arms
+        ctx.fillStyle = "#90caf9";
+        ctx.fillRect(
+          px - PLAYER.armW,
+          py + PLAYER.legH + 8,
+          PLAYER.armW,
+          PLAYER.armH
+        ); // Left arm
+        ctx.fillRect(
+          px + PLAYER.width,
+          py + PLAYER.legH + 8,
+          PLAYER.armW,
+          PLAYER.armH
+        ); // Right arm
+        // Head
+        ctx.fillStyle = "#fff59d";
+        ctx.fillRect(
+          px + PLAYER.width / 2 - PLAYER.head / 2,
+          py,
+          PLAYER.head,
+          PLAYER.head
+        );
+      }
+
+      function drawInfiniteRect() {
+        ctx.fillStyle = "#616161";
+        ctx.fillRect(infiniteRectX, 0, infiniteRectW, canvas.height);
+      }
+
+      function drawObstacles() {
+        for (let obs of obstacles) {
+          ctx.fillStyle = "#ff7043";
+          ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        }
+      }
+
+      function drawScore() {
+        scoreEl.textContent = Math.floor(score);
+        highScoreEl.textContent = highScore;
+      }
+
+      function spawnObstacle() {
+        // Randomly choose type
+        let type = Math.random() < 0.5 ? "small" : "big";
+        let w = OBSTACLE[type].w;
+        let h = OBSTACLE[type].h;
+        let y = groundY + PLAYER.height - h;
+        obstacles.push({
+          x: canvas.width + 40,
+          y: y,
+          w: w,
+          h: h,
+          type: type,
+        });
+      }
+
+      function updateObstacles() {
+        for (let obs of obstacles) {
+          obs.x -= speed;
+        }
+        // Remove off-screen
+        obstacles = obstacles.filter((obs) => obs.x + obs.w > 0);
+      }
+
+      function checkCollision() {
+        for (let obs of obstacles) {
+          // AABB collision
+          let px = player.x;
+          let py = player.y;
+          let pw = PLAYER.width;
+          let ph = PLAYER.height;
+          if (
+            px < obs.x + obs.w &&
+            px + pw > obs.x &&
+            py < obs.y + obs.h &&
+            py + ph > obs.y
+          ) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function handleJump() {
+        if (jumpState === 1) {
+          // Single jump
+          player.vy = -13;
+          player.onGround = false;
+          jumpState = 2;
+          doubleJumpUsed = false;
+        } else if (jumpState === 2 && !doubleJumpUsed) {
+          // Double jump
+          player.vy = -13;
+          doubleJumpUsed = true;
+        }
+      }
+
+      function gameLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw infinite rectangle
+        drawInfiniteRect();
+
+        // Update player
+        player.y += player.vy;
+        player.vy += 0.7; // gravity
+
+        if (player.y >= groundY) {
+          player.y = groundY;
+          player.vy = 0;
+          player.onGround = true;
+          jumpState = 1;
+          doubleJumpUsed = false;
+        } else {
+          player.onGround = false;
+        }
+
+        // Draw player
+        drawPlayer(player.x, player.y);
+
+        // Obstacles
+        updateObstacles();
+        drawObstacles();
+
+        // Spawn obstacles
+        obstacleTimer--;
+        if (obstacleTimer <= 0) {
+          spawnObstacle();
+          obstacleTimer = 60 + Math.random() * 60; // random interval
+        }
+
+        // If no obstacles, spawn more
+        if (obstacles.length === 0) {
+          spawnObstacle();
+        }
+
+        // Score
+        score += 0.25 * speed;
+        drawScore();
+
+        // Collision
+        if (checkCollision()) {
+          // Game over
+          if (score > highScore) highScore = Math.floor(score);
+          gameState = "gameover";
+          showGameOver();
+          return;
+        }
+
+        // Next frame
+        if (gameState === "playing") {
+          requestAnimationFrame(gameLoop);
+        }
+      }
+
+      function showMenu() {
+        menu.style.display = "flex";
+        canvas.style.display = "none";
+        scoreBar.style.display = "none";
+        gameOverDiv.style.display = "none";
+        highScoreEl.textContent = highScore;
+      }
+
+      function showGame() {
+        menu.style.display = "none";
+        canvas.style.display = "block";
+        scoreBar.style.display = "block";
+        gameOverDiv.style.display = "none";
+        drawScore();
+      }
+
+      function showGameOver() {
+        gameOverDiv.style.display = "flex";
+        canvas.style.display = "block";
+        scoreBar.style.display = "block";
+      }
+
+      // Event Listeners
+      playBtn.onclick = () => {
+        gameState = "playing";
+        resetGameVars();
+        showGame();
+        requestAnimationFrame(gameLoop);
+      };
+
+      document.addEventListener("keydown", (e) => {
+        if (gameState === "playing") {
+          if (e.code === "Space") {
+            if (player.onGround) {
+              jumpState = 1;
+              handleJump();
+            } else if (!doubleJumpUsed) {
+              handleJump();
+            }
+          }
+        }
+        if (gameState === "gameover" && e.key.toLowerCase() === "r") {
+          gameState = "menu";
+          showMenu();
+        }
+      });
+
+      restartBtn.onclick = () => {
+        gameState = "menu";
+        showMenu();
+      };
+
+      // On load, show menu
+      showMenu();
+    </script>
+  </body>
+</html>
