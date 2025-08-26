@@ -1,0 +1,230 @@
+
+html
+<title>Running Man
+html,
+body {
+height: 100%;
+margin: 0;
+padding: 0;
+background: #222;
+color: #fff;
+font-family: Arial, sans-serif;
+overflow: hidden;
+}
+#menu,
+#gameOver {
+position: absolute;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+background: rgba(34, 34, 34, 0.95);
+z-index: 2;
+}
+#menu h1 {
+font-size: 3em;
+margin-bottom: 40px;
+letter-spacing: 2px;
+}
+#menu button,
+#gameOver button {
+font-size: 1.5em;
+padding: 15px 40px;
+border: none;
+border-radius: 8px;
+background: #ff9800;
+color: #fff;
+cursor: pointer;
+transition: background 0.2s;
+}
+#menu button:hover,
+#gameOver button:hover {
+background: #e65100;
+}
+#gameOver h1 {
+font-size: 4em;
+font-weight: bold;
+margin-bottom: 30px;
+color: #ff5252;
+text-shadow: 2px 2px 8px #000;
+}
+#scoreBar {
+position: absolute;
+top: 20px;
+left: 30px;
+font-size: 1.5em;
+background: rgba(0, 0, 0, 0.4);
+padding: 10px 20px;
+border-radius: 10px;
+z-index: 1;
+min-width: 180px;
+}
+#scoreBar span {
+display: block;
+margin-top: 5px;
+font-size: 1em;
+color: #ffd54f;
+}
+canvas {
+display: block;
+margin: 0 auto;
+background: #333;
+box-shadow: 0 0 20px #000;
+}
+</style>
+<div id="menu">
+Running ManPlay
+Score: 0High Score: 0
+GAME OVER<button id="restartBtn">Press R to Restart
+// DOM Elements
+const menu = document.getElementById("menu");
+const playBtn = document.getElementById("playBtn");
+const gameOverDiv = document.getElementById("gameOver");
+const restartBtn = document.getElementById("restartBtn");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const scoreBar = document.getElementById("scoreBar");
+const scoreEl = document.getElementById("score");
+const highScoreEl = document.getElementById("highScore");
+// Game State
+let gameState = "menu"; // menu, playing, gameover
+let score = 0;
+let highScore = 0;
+let player, obstacles, obstacleTimer, groundY, speed, jumpState, jumpTimer, doubleJumpUsed;
+let infiniteRectX, infiniteRectW;
+let keys = {};
+// Player constants
+const PLAYER = {
+x: 120,
+y: 0, // will be set based on groundY
+width: 30,
+height: 60,
+legW: 8,
+legH: 30,
+armW: 8,
+armH: 28,
+head: 24,
+};
+// Obstacle constants
+const OBSTACLE = {
+small: { w: 30, h: 60 },
+big: { w: 30, h: 120 },
+};
+// Infinite rectangle (middle of map)
+infiniteRectW = 40;
+infiniteRectX = canvas.width / 2 - infiniteRectW / 2;
+// Utility functions
+function resetGameVars() {
+groundY = canvas.height - 60;
+speed = 6;
+score = 0;
+player = {
+x: PLAYER.x,
+y: groundY,
+vy: 0,
+onGround: true,
+};
+obstacles = [];
+obstacleTimer = 0;
+jumpState = 0; // 0: grounded, 1: jumping, 2: double jump
+jumpTimer = 0;
+doubleJumpUsed = false;
+}
+function drawPlayer(px, py) {
+// Legs
+ctx.fillStyle = "#90caf9";
+ctx.fillRect(px, py + PLAYER.height - PLAYER.legH, PLAYER.legW, PLAYER.legH); // Left leg
+ctx.fillRect(px + PLAYER.width - PLAYER.legW, py + PLAYER.height - PLAYER.legH, PLAYER.legW, PLAYER.legH); // Right leg
+// Torso
+ctx.fillStyle = "#1976d2";
+ctx.fillRect(px, py + PLAYER.legH, PLAYER.width, PLAYER.height - PLAYER.legH * 2);
+// Arms
+ctx.fillStyle = "#90caf9";
+ctx.fillRect(px - PLAYER.armW, py + PLAYER.legH + 8, PLAYER.armW, PLAYER.armH); // Left arm
+ctx.fillRect(px + PLAYER.width, py + PLAYER.legH + 8, PLAYER.armW, PLAYER.armH); // Right arm
+// Head
+ctx.fillStyle = "#ffccbc";
+ctx.beginPath();
+ctx.arc(px + PLAYER.width / 2, py + PLAYER.height / 2, PLAYER.head / 2, 0, Math.PI * 2);
+ctx.fill();
+}
+function drawObstacles() {
+ctx.fillStyle = "#ff1744";
+obstacles.forEach((obstacle) => {
+ctx.fillRect(obstacle.x, canvas.height - obstacle.h, obstacle.w, obstacle.h);
+});
+}
+function updateObstacles() {
+if (obstacleTimer > 100) { // spawn every 100 frames
+let height = Math.random() > 0.5 ? OBSTACLE.small.h : OBSTACLE.big.h;
+obstacles.push({ x: canvas.width, w: OBSTACLE.small.w, h: height });
+obstacleTimer = 0;
+}
+obstacleTimer++;
+obstacles.forEach((obstacle, index) => {
+obstacle.x -= speed;
+if (obstacle.x + obstacle.w < 0) {
+obstacles.splice(index, 1);
+score++;
+}
+});
+}
+function update() {
+if (gameState === "playing") {
+updateObstacles();
+// Player physics and input handling
+if (keys["ArrowUp"] && player.onGround) {
+player.vy = -12;
+player.onGround = false;
+}
+player.vy += 0.5; // gravity
+player.y += player.vy;
+if (player.y >= groundY) {
+player.y = groundY;
+player.onGround = true;
+}
+}
+}
+function draw() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+drawPlayer(player.x, player.y);
+drawObstacles();
+scoreEl.textContent = score;
+if (score > highScore) {
+highScore = score;
+highScoreEl.textContent = highScore;
+}
+}
+function gameLoop() {
+update();
+draw();
+requestAnimationFrame(gameLoop);
+}
+playBtn.addEventListener("click", () => {
+menu.style.display = "none";
+scoreBar.style.display = "block";
+canvas.style.display = "block";
+gameState = "playing";
+resetGameVars();
+gameLoop();
+});
+restartBtn.addEventListener("click", () => {
+gameOverDiv.style.display = "none";
+scoreBar.style.display = "block";
+canvas.style.display = "block";
+gameState = "playing";
+resetGameVars();
+gameLoop();
+});
+// Keyboard input
+window.addEventListener("keydown", (e) => {
+keys[e.key] = true;
+});
+window.addEventListener("keyup", (e) => {
+keys[e.key] = false;
+});
+</script>
