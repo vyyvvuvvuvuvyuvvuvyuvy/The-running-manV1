@@ -1,6 +1,7 @@
 
-html
-<title>Running Man
+html>
+="en">
+Man
 html,
 body {
 height: 100%;
@@ -79,7 +80,7 @@ box-shadow: 0 0 20px #000;
 <div id="menu">
 Running ManPlay
 Score: 0High Score: 0
-GAME OVER<button id="restartBtn">Press R to Restart
+GAME OVERPress R to Restart
 // DOM Elements
 const menu = document.getElementById("menu");
 const playBtn = document.getElementById("playBtn");
@@ -94,8 +95,7 @@ const highScoreEl = document.getElementById("highScore");
 let gameState = "menu"; // menu, playing, gameover
 let score = 0;
 let highScore = 0;
-let player, obstacles, obstacleTimer, groundY, speed, jumpState, jumpTimer, doubleJumpUsed;
-let infiniteRectX, infiniteRectW;
+let player, obstacles, obstacleTimer, groundY, speed;
 let keys = {};
 // Player constants
 const PLAYER = {
@@ -108,48 +108,42 @@ legH: 30,
 armW: 8,
 armH: 28,
 head: 24,
+vy: 0, // vertical velocity
+onGround: true,
 };
 // Obstacle constants
 const OBSTACLE = {
 small: { w: 30, h: 60 },
 big: { w: 30, h: 120 },
 };
-// Infinite rectangle (middle of map)
-infiniteRectW = 40;
-infiniteRectX = canvas.width / 2 - infiniteRectW / 2;
-// Utility functions
+// Initialize game variables
 function resetGameVars() {
 groundY = canvas.height - 60;
 speed = 6;
 score = 0;
 player = {
-x: PLAYER.x,
+...PLAYER,
 y: groundY,
-vy: 0,
-onGround: true,
 };
 obstacles = [];
 obstacleTimer = 0;
-jumpState = 0; // 0: grounded, 1: jumping, 2: double jump
-jumpTimer = 0;
-doubleJumpUsed = false;
 }
 function drawPlayer(px, py) {
 // Legs
 ctx.fillStyle = "#90caf9";
-ctx.fillRect(px, py + PLAYER.height - PLAYER.legH, PLAYER.legW, PLAYER.legH); // Left leg
-ctx.fillRect(px + PLAYER.width - PLAYER.legW, py + PLAYER.height - PLAYER.legH, PLAYER.legW, PLAYER.legH); // Right leg
+ctx.fillRect(px, py + player.height - player.legH, player.legW, player.legH); // Left leg
+ctx.fillRect(px + player.width - player.legW, py + player.height - player.legH, player.legW, player.legH); // Right leg
 // Torso
 ctx.fillStyle = "#1976d2";
-ctx.fillRect(px, py + PLAYER.legH, PLAYER.width, PLAYER.height - PLAYER.legH * 2);
+ctx.fillRect(px, py + player.legH, player.width, player.height - player.legH * 2);
 // Arms
 ctx.fillStyle = "#90caf9";
-ctx.fillRect(px - PLAYER.armW, py + PLAYER.legH + 8, PLAYER.armW, PLAYER.armH); // Left arm
-ctx.fillRect(px + PLAYER.width, py + PLAYER.legH + 8, PLAYER.armW, PLAYER.armH); // Right arm
+ctx.fillRect(px - player.armW, py + player.legH + 8, player.armW, player.armH); // Left arm
+ctx.fillRect(px + player.width, py + player.legH + 8, player.armW, player.armH); // Right arm
 // Head
 ctx.fillStyle = "#ffccbc";
 ctx.beginPath();
-ctx.arc(px + PLAYER.width / 2, py + PLAYER.height / 2, PLAYER.head / 2, 0, Math.PI * 2);
+ctx.arc(px + player.width / 2, py + player.height / 2, player.head / 2, 0, Math.PI * 2);
 ctx.fill();
 }
 function drawObstacles() {
@@ -160,7 +154,7 @@ ctx.fillRect(obstacle.x, canvas.height - obstacle.h, obstacle.w, obstacle.h);
 }
 function updateObstacles() {
 if (obstacleTimer > 100) { // spawn every 100 frames
-let height = Math.random() > 0.5 ? OBSTACLE.small.h : OBSTACLE.big.h;
+const height = Math.random() > 0.5 ? OBSTACLE.small.h : OBSTACLE.big.h;
 obstacles.push({ x: canvas.width, w: OBSTACLE.small.w, h: height });
 obstacleTimer = 0;
 }
@@ -176,16 +170,17 @@ score++;
 function update() {
 if (gameState === "playing") {
 updateObstacles();
-// Player physics and input handling
-if (keys["ArrowUp"] && player.onGround) {
-player.vy = -12;
-player.onGround = false;
-}
-player.vy += 0.5; // gravity
+// Gravity
+player.vy += 0.5;
 player.y += player.vy;
 if (player.y >= groundY) {
 player.y = groundY;
+player.vy = 0;
 player.onGround = true;
+}
+if (keys["ArrowUp"] && player.onGround) {
+player.vy = -12; // jump
+player.onGround = false;
 }
 }
 }
