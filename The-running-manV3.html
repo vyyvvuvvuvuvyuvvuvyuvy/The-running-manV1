@@ -3,788 +3,349 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Running Man Game with Lives, Characters & Goblins</title>
+<title>Enhanced Pixel Art Runner with Particles & Background</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
 <style>
-body {
-    margin: 0;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    font-family: 'Arial', sans-serif;
-}
-#gameContainer {
+  body {
+    margin: 0; padding: 0;
+    background: #222;
+    display: flex; justify-content: center; align-items: center;
+    height: 100vh;
+    font-family: 'Press Start 2P', monospace;
+  }
+  #gameContainer {
     position: relative;
-    border: 3px solid #333;
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
-canvas {
+    border: 4px solid #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.7);
+  }
+  canvas {
     display: block;
-    background: linear-gradient(to bottom, #87CEEB 0%, #98FB98 100%);
-}
-#livesContainer {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  display: flex;
-  gap: 5px;
-  z-index: 15;
-}
-.heart {
-  width: 24px;
-  height: 24px;
-}
-#hud {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    color: white;
-    font-size: 20px;
-    font-weight: bold;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
-    z-index: 10;
-}
-.coin-display {
-    color: #FFD700;
-    font-size: 24px;
-}
-#menu, #gameOver, #shop, #characterShop {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;
-}
-#menu h1, #gameOver h1, #shop h1, #characterShop h1 {
-    font-size: 48px;
-    margin-bottom: 20px;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-}
-#menu p, #gameOver p, #shop p, #characterShop p {
-    font-size: 18px;
-    margin-bottom: 30px;
-}
-.button {
-    padding: 15px 30px;
-    font-size: 20px;
-    background: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 25px;
-    cursor: pointer;
-    margin: 10px;
-    transition: all 0.3s;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-.button:hover {
-    background: #45a049;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-}
-.shop-button {
-    background: #FFD700; color: #333;
-}
-.shop-button:hover {
-    background: #FFC700;
-}
-.shop-item {
-    background: rgba(255,255,255,0.1);
-    padding: 15px;
-    margin: 10px;
-    border-radius: 10px;
-    border: 2px solid #FFD700;
-}
-.shop-item.owned {
-    border-color: #4CAF50;
-    background: rgba(76, 175, 80, 0.2);
-}
-#characterList {
-    display:flex; flex-wrap:wrap; justify-content:center; max-width: 600px;
-}
+    background: #000;
+  }
 </style>
 </head>
 <body>
 <div id="gameContainer">
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
-    <!-- Lives Hearts -->
-    <div id="livesContainer">
-        <img src="https://img.icons8.com/emoji/48/000000/red-heart-emoji.png" class="heart" id="heart1"/>
-        <img src="https://img.icons8.com/emoji/48/000000/red-heart-emoji.png" class="heart" id="heart2"/>
-        <img src="https://img.icons8.com/emoji/48/000000/red-heart-emoji.png" class="heart" id="heart3"/>
-    </div>
-    <!-- HUD -->
-    <div id="hud">
-        <div>Score: <span id="scoreDisplay">0</span></div>
-        <div class="coin-display">Coins: <span id="coinDisplay">0</span> (+<span id="coinsThisRunDisplay">0</span>)</div>
-        <div>High Score: <span id="highScoreDisplay">0</span></div>
-    </div>
-    <!-- Menus -->
-    <div id="menu">
-        <h1>🏃 Running Man</h1>
-        <p>Press SPACEBAR to jump and avoid obstacles!</p>
-        <p>Collect coins to unlock new abilities!</p>
-        <button class="button" onclick="startGame()">Start Game</button>
-        <button class="button shop-button" onclick="openShop()">Shop (Coins: <span id='menuCoins'>0</span>)</button>
-        <button class="button" onclick="openCharacterShop()">Characters</button>
-    </div>
-    <div id="gameOver" style="display: none;">
-        <h1>Game Over!</h1>
-        <p>Score: <span id="finalScore">0</span></p>
-        <p>Coins Collected: <span id="coinsCollected">0</span></p>
-        <p>Total Coins: <span id="totalCoins">0</span></p>
-        <button class="button" onclick="startGame()">Play Again</button>
-        <button class="button shop-button" onclick="openShop()">Shop</button>
-        <button class="button" onclick="showMenu()">Main Menu</button>
-        <button class="button" onclick="openCharacterShop()">Characters</button>
-    </div>
-    <div id="shop" style="display: none;">
-        <h1>🛍️ Shop</h1>
-        <p class="coin-display">Your Coins: <span id="shopCoins">0</span></p>
-        <div class="shop-item" id="doubleJumpItem">
-            <h3>Double Jump Boost</h3>
-            <p>Jump higher with double jumps!</p>
-            <button class="button shop-button" onclick="buyUpgrade('doubleJump', 50)">Buy for 50 coins</button>
-        </div>
-        <div class="shop-item" id="speedBoostItem">
-            <h3>Speed Boost</h3>
-            <p>Move faster and score more points!</p>
-            <button class="button shop-button" onclick="buyUpgrade('speedBoost', 100)">Buy for 100 coins</button>
-        </div>
-        <div class="shop-item" id="coinMagnetItem">
-            <h3>Coin Magnet</h3>
-            <p>Attract coins from a distance!</p>
-            <button class="button shop-button" onclick="buyUpgrade('coinMagnet', 75)">Buy for 75 coins</button>
-        </div>
-        <button class="button" onclick="closeShop()">Back to Game</button>
-    </div>
-    <!-- Character Selector -->
-    <div id="characterShop" style="display: none;">
-        <h1>🎭 Characters</h1>
-        <div id="characterList"></div>
-        <button class="button" onclick="closeCharacterShop()">Back</button>
-    </div>
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
 </div>
-
 <script>
-// ==================== Initialization ====================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-let gameState = 'menu'; // 'menu', 'playing', 'gameOver', 'shop', 'characterShop'
-let score = 0;
-let highScore = localStorage.getItem('runningManHighScore') || 0;
-let coins = parseInt(localStorage.getItem('runningManCoins')) || 0;
-let coinsThisRun = 0;
+let gameState='menu';
 
-// Upgrades
-let upgrades = {
-    doubleJump: localStorage.getItem('doubleJumpUpgrade') === 'true',
-    speedBoost: localStorage.getItem('speedBoostUpgrade') === 'true',
-    coinMagnet: localStorage.getItem('coinMagnet') === 'true'
-};
-
-// Characters data
-const characters = [
-  {
-    name: 'Default',
-    pixelData: [
-      ' 111 ',
-      '1 1 1',
-      ' 1  ',
-      '1 1 ',
-      ' 1  '
-    ],
-    price: 0
-  },
-  {
-    name: 'Goblin',
-    pixelData: [
-      ' 222 ',
-      '22222',
-      ' 2  ',
-      '2222 ',
-      ' 22  '
-    ],
-    price: 100
-  },
-  {
-    name: 'Knight',
-    pixelData: [
-      ' 333 ',
-      '33333',
-      ' 3  ',
-      '3 3 ',
-      ' 3  '
-    ],
-    price: 150
-  }
-];
-
-let ownedCharacters = JSON.parse(localStorage.getItem('ownedCharacters')) || { 'Default': true };
-if (!ownedCharacters['Goblin']) ownedCharacters['Goblin']=false;
-if (!ownedCharacters['Knight']) ownedCharacters['Knight']=false;
-let currentCharacter = localStorage.getItem('currentCharacter') || 'Default';
-
-// ==================== Player & Game Objects ====================
-const defaultPixelData=[
-  ' 111 ',
-  '1 1 1',
-  ' 1  ',
-  '1 1 ',
-  ' 1  '
-];
-
-const player = {
-    x: 100,
-    y: 200,
-    width: 30,
-    height: 40,
-    velocityY: 0,
-    onGround: false,
-    jumpCount: 0,
-    maxJumps: 2,
-    jumpPower: -12,
-    color: '#FF6B6B',
-    pixelData: null
-};
-
-// Initialize player's pixelData after loading character
-player.pixelData = characters.find(c=>c.name===localStorage.getItem('currentCharacter'))?.pixelData || defaultPixelData;
-
-// Game objects
-let obstacles = [];
-let gameCoins = [];
-let particles = [];
-let goblins = [];
-
-// Settings
-const gravity=0.6;
-const groundY=canvas.height - 50;
-let gameSpeed=3;
-let obstacleSpawnRate=0.02;
-let coinSpawnRate=0.015;
-
-// Lives
+let score=0;
+let highScore=localStorage.getItem('pixelHighScore') || 0;
+let coins= parseInt(localStorage.getItem('pixelCoins')) || 0;
 let lives=3;
 
-// ==================== Utility Functions ====================
-function updateDisplays() {
-  document.getElementById('scoreDisplay').textContent=score;
-  document.getElementById('highScoreDisplay').textContent=highScore;
-  document.getElementById('coinDisplay').textContent=coins;
-  document.getElementById('coinsThisRunDisplay').textContent=coinsThisRun;
-  document.getElementById('menuCoins').textContent=coins;
-  document.getElementById('shopCoins').textContent=coins;
-}
-function updateShopItems() {
-  const doubleJumpItem=document.getElementById('doubleJumpItem');
-  const speedBoostItem=document.getElementById('speedBoostItem');
-  const coinMagnetItem=document.getElementById('coinMagnetItem');
+// Background layers for parallax
+const bgLayers = [
+  {speed: 0.2, x:0, color:'#0a0'},
+  {speed: 0.4, x:0, color:'#222'},
+  {speed: 0.6, x:0, color:'#444'}
+];
 
-  if (upgrades.doubleJump) {
-    doubleJumpItem.classList.add('owned');
-    doubleJumpItem.querySelector('button').textContent='Owned';
-    doubleJumpItem.querySelector('button').disabled=true;
-  }
-  if (upgrades.speedBoost) {
-    speedBoostItem.classList.add('owned');
-    speedBoostItem.querySelector('button').textContent='Owned';
-    speedBoostItem.querySelector('button').disabled=true;
-  }
-  if (upgrades.coinMagnet) {
-    coinMagnetItem.classList.add('owned');
-    coinMagnetItem.querySelector('button').textContent='Owned';
-    coinMagnetItem.querySelector('button').disabled=true;
-  }
-}
-function buyUpgrade(upgrade, cost) {
-  if (coins >= cost && !upgrades[upgrade]) {
-    coins -= cost;
-    upgrades[upgrade]=true;
-    localStorage.setItem('runningManCoins', coins);
-    localStorage.setItem(upgrade+'Upgrade','true');
-    updateDisplays();
-    updateShopItems();
-    applyUpgrades();
-  }
-}
-function applyUpgrades() {
-  if (upgrades.doubleJump) {
-    player.jumpPower=-14;
-  } else {
-    player.jumpPower=-12;
-  }
-  if (upgrades.speedBoost) {
-    gameSpeed=4.5;
-  } else {
-    gameSpeed=3;
-  }
-}
-function loadCharacter(name) {
-  currentCharacter=name;
-  localStorage.setItem('currentCharacter',name);
-  const c=characters.find(c=>c.name===name);
-  if(c){
-    player.pixelData=c.pixelData;
-  }
-}
-function openCharacterShop() {
-  gameState='characterShop';
-  document.getElementById('menu').style.display='none';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='none';
-  document.getElementById('characterShop').style.display='block';
-  populateCharacterList();
-}
-function closeCharacterShop() { showMenu(); }
-function populateCharacterList() {
-  const container=document.getElementById('characterList');
-  container.innerHTML='';
-  characters.forEach(c => {
-    const div=document.createElement('div');
-    div.style.margin='10px';
-    div.style.border='2px solid #ccc';
-    div.style.borderRadius='10px';
-    div.style.padding='10px';
-    div.style.cursor='pointer';
-    div.onclick=()=>{
-      if (ownedCharacters[c.name]) {
-        loadCharacter(c.name);
-        localStorage.setItem('currentCharacter', c.name);
-      } else if (coins>=c.price) {
-        coins -= c.price;
-        ownedCharacters[c.name]=true;
-        localStorage.setItem('ownedCharacters', JSON.stringify(ownedCharacters));
-        localStorage.setItem('runningManCoins', coins);
-        loadCharacter(c.name);
-        localStorage.setItem('currentCharacter', c.name);
-        updateDisplays();
-        populateCharacterList();
-      } else {
-        alert('Not enough coins!');
+// Sprite frames for character animation
+const spriteFrames=[
+  [
+    [0,0,1,0,0],
+    [0,1,1,1,0],
+    [1,1,1,1,1],
+    [0,1,0,1,0],
+    [1,0,1,0,1]
+  ],
+  [
+    [0,0,1,0,0],
+    [0,1,1,1,0],
+    [1,1,1,1,1],
+    [1,0,0,0,1],
+    [0,1,1,1,0]
+  ],
+  [
+    [0,0,1,0,0],
+    [0,1,1,1,0],
+    [1,1,1,1,1],
+    [0,0,1,0,0],
+    [0,1,0,1,0]
+  ]
+];
+
+let spriteFrameIndex=0;
+let spriteFrameTimer=0;
+
+// Player object
+const player={
+  x:100,
+  y:0,
+  width:12,
+  height:12,
+  velocityY:0,
+  onGround:false,
+  jumpPower:-10,
+  jumpCount:0,
+  maxJumps:2,
+  pixelData: spriteFrames[0]
+};
+
+// Arrays for game objects
+let obstacles=[], coins=[], goblins=[], particles=[];
+
+// Utility: draw pixel art sprite
+function drawPixelArt(pixels,x,y,size=4,color='lime') {
+  ctx.fillStyle=color;
+  for (let r=0; r<pixels.length; r++) {
+    for (let c=0; c<pixels[r].length; c++) {
+      if (pixels[r][c]) {
+        ctx.fillRect(x + c*size, y + r*size, size, size);
       }
-    };
-    div.innerHTML=`<h3>${c.name}</h3><p>Price: ${c.price} coins</p>`;
-    if (ownedCharacters[c.name]) {
-      div.innerHTML+='<p style="color:green;">Owned - Click to select</p>';
-    } else {
-      div.innerHTML+=`<p>Click to buy</p>`;
     }
-    container.appendChild(div);
+  }
+}
+
+// Draw animated sprite
+function drawPlayer() {
+  if (spriteFrameTimer>8) {
+    spriteFrameIndex=(spriteFrameIndex+1)%spriteFrames.length;
+    spriteFrameTimer=0;
+  } else {
+    spriteFrameTimer++;
+  }
+  player.pixelData=spriteFrames[spriteFrameIndex];
+  drawPixelArt(player.pixelData, player.x, player.y, 4, 'lime');
+}
+
+// Draw layered background for parallax
+function drawBackground() {
+  for (const layer of bgLayers) {
+    ctx.fillStyle=layer.color;
+    ctx.fillRect(-layer.x,0,canvas.width+layer.x,canvas.height);
+    layer.x+=layer.speed;
+    if (layer.x>canvas.width) layer.x=0;
+  }
+  // Optional: add stars/cloud particles as dots
+}
+
+// Draw ground
+function drawGround() {
+  ctx.fillStyle='darkgreen';
+  ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+}
+
+// Draw hearts (lives)
+function drawHearts() {
+  for(let i=0;i<lives;i++) drawHeart(10 + i*20,10);
+}
+function drawHeart(x,y) {
+  ctx.fillStyle='red';
+  ctx.beginPath();
+  ctx.moveTo(x+4,y+2);
+  ctx.bezierCurveTo(x+4,y,x,y,x,y+4);
+  ctx.bezierCurveTo(x,y+8,x+4,y+10,x+8,y+8);
+  ctx.bezierCurveTo(x+12,y+10,x+16,y+8,x+16,y+4);
+  ctx.bezierCurveTo(x+16,y,x+12,y+2,x+8,y+4);
+  ctx.bezierCurveTo(x+4,y+2,x,y,x+4,y+2);
+  ctx.fill();
+}
+
+// Draw coins with spinning animation
+function drawCoins() {
+  coins.forEach(c => {
+    ctx.save();
+    ctx.translate(c.x + c.size, c.y + c.size);
+    ctx.rotate(c.angle);
+    ctx.fillStyle='gold';
+    ctx.beginPath();
+    ctx.arc(0,0,c.size,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
   });
 }
 
-// ==================== Main Loop & Update ====================
-function update() {
-  if (gameState==='playing') {
-    updatePlayer();
-    updateObstacles();
-    updateCoins();
-    updateParticles();
-    updateGoblins();
-
-    spawnObstacle();
-    spawnCoin();
-    spawnGoblin();
-
-    // Increase difficulty gradually
-    gameSpeed+=0.0005;
-    obstacleSpawnRate=Math.min(0.03,obstacleSpawnRate+0.00001);
-    score++;
-    updateDisplays();
-    checkCollisions();
-  }
+// Draw goblin enemies
+function drawGoblins() {
+  ctx.fillStyle='green';
+  goblins.forEach(g => {
+    ctx.fillRect(g.x,g.y,g.width,g.height);
+  });
 }
+
+// Draw particles
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.globalAlpha=p.alpha;
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x,p.y,p.size,p.size);
+  });
+  ctx.globalAlpha=1;
+}
+
+// Draw all game elements
 function draw() {
   drawBackground();
   drawGround();
-  drawObstacles();
+  drawPlayer();
+  obstacles.forEach(o=> ctx.fillStyle='brown', ctx.fillRect(o.x,o.y,o.width,o.height));
   drawCoins();
-  drawParticles();
   drawGoblins();
-  if (gameState==='playing') drawPlayer();
-  drawLives();
+  drawParticles();
+  drawHearts();
+  drawScore();
+
+  // Overlay messages
+  ctx.font='20px "Press Start 2P"';
+  ctx.fillStyle='white';
+  if (gameState==='menu') ctx.fillText('CLICK TO START', 300,200);
+  if (gameState==='gameOver') {
+    ctx.fillText('GAME OVER', 340,180);
+    ctx.fillText(`Score: ${score}`, 340,220);
+  }
 }
+
+// Update game state
+function update() {
+  if (gameState==='playing') {
+    // Animate sprite
+    if (spriteFrameTimer>8) {
+      spriteFrameIndex=(spriteFrameIndex+1)%spriteFrames.length;
+      spriteFrameTimer=0;
+    } else {
+      spriteFrameTimer++;
+    }
+    player.pixelData=spriteFrames[spriteFrameIndex];
+
+    // Gravity physics
+    player.velocityY+=0.4;
+    player.y+=player.velocityY;
+    if (player.y+player.height>groundY) {
+      player.y=groundY-player.height;
+      player.velocityY=0;
+    }
+
+    // Parallax background
+    for (const layer of bgLayers) {
+      layer.x+=layer.speed;
+      if (layer.x>canvas.width) layer.x=0;
+    }
+
+    // Spawn obstacles, coins, enemies
+    if (Math.random()<0.02) obstacles.push({x:canvas.width,y:groundY-10,w:10,h:10});
+    if (Math.random()<0.015) coins.push({x:Math.random()*canvas.width,y:groundY-20-Math.random()*50,size:4,angle:0});
+    if (Math.random()<0.01) goblins.push({x:canvas.width,y:groundY-12,w:12,h:12,speed:gameSpeed+0.5});
+
+    // Move
+    obstacles.forEach(o=> o.x-=gameSpeed);
+    coins.forEach(c=> c.x-=gameSpeed);
+    goblins.forEach(g=> g.x-=g.speed);
+
+    // Remove off-screen
+    obstacles=obstacles.filter(o=>o.x+o.w>0);
+    coins=coins.filter(c=>c.x+4>0);
+    goblins=goblins.filter(g=>g.x+g.w>0);
+
+    // Collisions
+    obstacles.forEach(o=> { if (rectIntersect(player,o)) { loseLife(); createParticles(player.x+player.width/2, player.y+player.height/2, 'red'); } });
+    coins.forEach(c=> { if (rectIntersect(player,c)) { c.x=-100; coins++; coinsThisRun++; createParticles(c.x,c.y,'yellow'); } });
+    goblins.forEach(g=> { if (rectIntersect(player,g)) { loseLife(); createParticles(player.x+player.width/2, player.y+player.height/2, 'orange'); } });
+  }
+}
+
+// Particle emitter
+function createParticles(x,y,color) {
+  for (let i=0; i<8; i++) {
+    particles.push({
+      x:x + (Math.random()-0.5)*4,
+      y:y + (Math.random()-0.5)*4,
+      size: Math.random()*2+1,
+      alpha:1,
+      vx:(Math.random()-0.5)*2,
+      vy:-Math.random()*2,
+      color:color,
+      life:30
+    });
+  }
+}
+
+// Draw score
+function drawScore() {
+  ctx.font='14px "Press Start 2P"';
+  ctx.fillStyle='white';
+  ctx.fillText(`SCORE: ${score}`,10,20);
+  ctx.fillText(`HI: ${highScore}`,10,40);
+  ctx.fillText(`COINS: ${coins}`,10,60);
+}
+
+// Input handlers
+canvas.onclick= ()=> {
+  if (gameState==='menu') startGame();
+  else if (gameState==='gameOver') startGame();
+  else if (gameState==='playing') jump();
+}
+document.addEventListener('keydown', e=> {
+  if (e.code==='Space') jump();
+});
+
+// Jump
+function jump() {
+  if (player.onGround || (lives>0 && player.jumpCount<player.maxJumps)) {
+    player.velocityY=-10;
+    player.jumpCount++;
+    createParticles(player.x+player.width/2, player.y+player.height, 'white');
+  }
+}
+
+// Game over
+function loseLife() {
+  lives--;
+  createParticles(player.x+player.width/2, player.y+player.height/2, 'red');
+  if (lives<=0) endGame();
+}
+function resetPlayer() {
+  player.x=100; player.y=groundY-player.height; player.velocityY=0; player.jumpCount=0;
+}
+function startGame() {
+  score=0; coinsThisRun=0; lives=3; resetHearts();
+  obstacles=[]; coins=[]; goblins=[]; particles=[];
+  gameSpeed=2;
+  gameState='playing';
+  resetPlayer();
+}
+function endGame() {
+  gameState='gameOver';
+  if (score>highScore) {
+    localStorage.setItem('pixelHighScore',score);
+    highScore=score;
+  }
+}
+
+// Draw hearts
+function resetHearts() {
+  lives=3;
+}
+function drawHearts() {
+  for(let i=0;i<lives;i++) drawHeart(10 + i*20,10);
+}
+function drawHeart(x,y) {
+  ctx.fillStyle='red';
+  ctx.beginPath();
+  ctx.moveTo(x+4,y+2);
+  ctx.bezierCurveTo(x+4,y,x,y,x,y+4);
+  ctx.bezierCurveTo(x,y+8,x+4,y+10,x+8,y+8);
+  ctx.bezierCurveTo(x+12,y+10,x+16,y+8,x+16,y+4);
+  ctx.bezierCurveTo(x+16,y,x+12,y+2,x+8,y+4);
+  ctx.bezierCurveTo(x+4,y+2,x,y,x+4,y+2);
+  ctx.fill();
+}
+
+// Main loop
 function gameLoop() {
   update();
   draw();
   requestAnimationFrame(gameLoop);
 }
-
-// ==================== Event Listeners ====================
-document.addEventListener('keydown', e => {
-  if (gameState==='playing' && e.code==='Space') {
-    e.preventDefault();
-    jump();
-  }
-});
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  if (gameState==='playing') jump();
-});
-
-// ==================== Draw Functions ====================
-function drawBackground() {
-  const gradient=ctx.createLinearGradient(0,0,0,canvas.height);
-  gradient.addColorStop(0,'#87CEEB');
-  gradient.addColorStop(1,'#98FB98');
-  ctx.fillStyle=gradient;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='rgba(255,255,255,0.8)';
-  const cloudOffset=(score*0.5)%200;
-  for (let i=0;i<4;i++) {
-    const x=i*200 - cloudOffset;
-    ctx.beginPath();
-    ctx.arc(x,60,20,0,Math.PI*2);
-    ctx.arc(x+20,60,25,0,Math.PI*2);
-    ctx.arc(x+40,60,20,0,Math.PI*2);
-    ctx.fill();
-  }
-}
-function drawGround() {
-  ctx.fillStyle='#228B22';
-  ctx.fillRect(0,groundY,canvas.width,canvas.height - groundY);
-  ctx.fillStyle='#32CD32';
-  for (let x=0;x<canvas.width;x+=20) {
-    ctx.fillRect(x,groundY,2,5);
-    ctx.fillRect(x+5,groundY,2,3);
-    ctx.fillRect(x+10,groundY,2,4);
-    ctx.fillRect(x+15,groundY,2,6);
-  }
-}
-function drawPlayer() {
-  ctx.fillStyle=player.color;
-  if (player.pixelData) {
-    const pixelSize=4;
-    player.pixelData.forEach((row, yIdx) => {
-      for (let xIdx=0; xIdx<row.length; xIdx++) {
-        if (row[xIdx]!==' ') {
-          ctx.fillStyle='#00FF00';
-          ctx.fillRect(player.x + xIdx * pixelSize, player.y + yIdx*pixelSize, pixelSize, pixelSize);
-        }
-      }
-    });
-  } else {
-    ctx.fillRect(player.x,player.y,player.width,player.height);
-  }
-}
-function drawObstacles() {
-  ctx.fillStyle='#8B4513';
-  obstacles.forEach(o => {
-    ctx.fillRect(o.x,o.y,o.width,o.height);
-  });
-}
-function drawCoins() {
-  gameCoins.forEach(c => {
-    if (!c.collected) {
-      ctx.save();
-      ctx.translate(c.x + c.width/2, c.y + c.height/2);
-      ctx.rotate(c.rotation);
-      ctx.fillStyle='#FFD700';
-      ctx.fillRect(-c.width/2,-c.height/2,c.width,c.height);
-      ctx.restore();
-    }
-  });
-}
-function drawParticles() {
-  particles.forEach(p => {
-    ctx.globalAlpha=p.life/p.maxLife;
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x-2,p.y-2,4,4);
-  });
-  ctx.globalAlpha=1;
-}
-function drawGoblins() {
-  goblins.forEach(g => {
-    ctx.fillStyle='green';
-    ctx.fillRect(g.x,g.y,g.width,g.height);
-  });
-}
-function drawLives() {
-  // Already handled via DOM images
-}
-
-// ==================== Controls ====================
-function showMenu() {
-  gameState='menu';
-  document.getElementById('menu').style.display='flex';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='none';
-  document.getElementById('characterShop').style.display='none';
-}
-function openShop() {
-  gameState='shop';
-  document.getElementById('menu').style.display='none';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='flex';
-  document.getElementById('characterShop').style.display='none';
-}
-function closeShop() {
-  showMenu();
-}
-function startGame() {
-  // Reset player
-  player.x=100;
-  player.y=200;
-  player.velocityY=0;
-  player.onGround=false;
-  player.jumpCount=0;
-  gameSpeed=upgrades.speedBoost ? 4.5 : 3;
-  obstacles=[]; gameCoins=[]; particles=[]; goblins=[];
-  resetHearts();
-  score=0;
-  coinsThisRun=0;
-  updateDisplays();
-  gameState='playing';
-}
-
-// ==================== Player Control ====================
-function jump() {
-  if (player.onGround || (upgrades.doubleJump && player.jumpCount<player.maxJumps)) {
-    player.velocityY=player.jumpPower;
-    player.onGround=false;
-    player.jumpCount++;
-  }
-}
-
-// ==================== Helper Functions ====================
-function resetHearts() {
-  lives=3;
-  updateHearts();
-}
-function updateHearts() {
-  for(let i=1;i<=3;i++){
-    document.getElementById('heart'+i).style.visibility= i<=lives ? 'visible':'hidden';
-  }
-}
-function checkCollisions() {
-  // Obstacles
-  obstacles.forEach((o, idx) => {
-    if (rectIntersect(player, o)) {
-      obstacles.splice(idx,1);
-      loseLife();
-    }
-  });
-  // Coins
-  for(let i=0;i<gameCoins.length;i++) {
-    const c=gameCoins[i];
-    if (!c.collected && rectIntersect(player,c)){
-      c.collected=true;
-      coins+=1;
-      coinsThisRun+=1;
-      updateDisplays();
-    }
-  }
-  // Goblins
-  goblins.forEach((g, idx) => {
-    if (rectIntersect(player,g)){
-      loseLife();
-    }
-  });
-}
-function rectIntersect(a,b) {
-  return a.x < b.x + b.width &&
-         a.x + a.width > b.x &&
-         a.y < b.y + b.height &&
-         a.y + a.height > b.y;
-}
-function loseLife() {
-  lives--;
-  updateHearts();
-  if (lives<=0) {
-    gameOver();
-  } else {
-    // Reset player position
-    player.x=100;
-    player.y=200;
-    player.velocityY=0;
-  }
-}
-function gameOver() {
-  gameState='gameOver';
-  document.getElementById('gameOver').style.display='block';
-  document.getElementById('menu').style.display='none';
-  // Save high score
-  if (score>highScore) {
-    localStorage.setItem('runningManHighScore', score);
-    highScore=score;
-  }
-  // Save total coins if needed
-}
-
-
-// ==================== Spawning Functions ====================
-function spawnObstacle() {
-  if (Math.random() < obstacleSpawnRate) {
-    obstacles.push({
-      x: canvas.width,
-      y: groundY - 20,
-      width: 20,
-      height: 20
-    });
-  }
-}
-function spawnCoin() {
-  if (Math.random() < coinSpawnRate) {
-    gameCoins.push({
-      x: Math.random() * (canvas.width - 10),
-      y: Math.random() * (groundY - 100),
-      width: 10,
-      height: 10,
-      collected:false,
-      rotation: Math.random()*Math.PI*2
-    });
-  }
-}
-function spawnGoblin() {
-  if (Math.random() < obstacleSpawnRate) {
-    goblins.push({
-      x: canvas.width,
-      y: groundY - 40,
-      width: 40,
-      height: 40,
-      speed: gameSpeed + 1
-    });
-  }
-}
-
-// ==================== Update Functions ====================
-function updatePlayer() {
-  // Apply gravity
-  player.velocityY += gravity;
-  player.y += player.velocityY;
-
-  // Check ground collision
-  if (player.y + player.height >= groundY) {
-    player.y=groundY - player.height;
-    player.velocityY=0;
-    player.onGround=true;
-    player.jumpCount=0;
-  } else {
-    player.onGround=false;
-  }
-}
-function updateObstacles() {
-  for(let i=obstacles.length-1;i>=0;i--) {
-    obstacles[i].x -= gameSpeed;
-    if (obstacles[i].x + obstacles[i].width <0) {
-      obstacles.splice(i,1);
-    }
-  }
-}
-function updateCoins() {
-  for(let i=gameCoins.length-1;i>=0;i--) {
-    const c=gameCoins[i];
-    c.x -= gameSpeed;
-    c.rotation+=0.1;
-    if (c.x + c.width <0 || c.collected) {
-      gameCoins.splice(i,1);
-    }
-  }
-}
-function updateGoblins() {
-  for(let i=goblins.length-1;i>=0;i--) {
-    goblins[i].x -= goblins[i].speed;
-    if (goblins[i].x + goblins[i].width <0) {
-      goblins.splice(i,1);
-    }
-  }
-}
-function updateParticles() {
-  for(let i=particles.length-1;i>=0;i--) {
-    const p=particles[i];
-    p.x+=p.vx;
-    p.y+=p.vy;
-    p.life--;
-    if (p.life<=0) particles.splice(i,1);
-  }
-}
-
-// ==================== Drawing functions ====================
-function drawBackground() {
-  const gradient=ctx.createLinearGradient(0,0,0,canvas.height);
-  gradient.addColorStop(0,'#87CEEB');
-  gradient.addColorStop(1,'#98FB98');
-  ctx.fillStyle=gradient;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='rgba(255,255,255,0.8)';
-  const cloudOffset=(score*0.5)%200;
-  for (let i=0;i<4;i++) {
-    const x=i*200 - cloudOffset;
-    ctx.beginPath();
-    ctx.arc(x,60,20,0,Math.PI*2);
-    ctx.arc(x+20,60,25,0,Math.PI*2);
-    ctx.arc(x+40,60,20,0,Math.PI*2);
-    ctx.fill();
-  }
-}
-function drawGround() {
-  ctx.fillStyle='#228B22';
-  ctx.fillRect(0,groundY,canvas.width,canvas.height - groundY);
-  ctx.fillStyle='#32CD32';
-  for (let x=0;x<canvas.width;x+=20) {
-    ctx.fillRect(x,groundY,2,5);
-    ctx.fillRect(x+5,groundY,2,3);
-    ctx.fillRect(x+10,groundY,2,4);
-    ctx.fillRect(x+15,groundY,2,6);
-  }
-}
-function drawPlayer() {
-  ctx.fillStyle=player.color;
-  if (player.pixelData) {
-    const pixelSize=4;
-    player.pixelData.forEach((row, yIdx) => {
-      for (let xIdx=0; xIdx<row.length; xIdx++) {
-        if (row[xIdx]!==' ') {
-          ctx.fillStyle='#00FF00'; // Or customize per pixel if needed
-          ctx.fillRect(player.x + xIdx * pixelSize, player.y + yIdx*pixelSize, pixelSize, pixelSize);
-        }
-      }
-    });
-  } else {
-    ctx.fillRect(player.x,player.y,player.width,player.height);
-  }
-}
-function drawObstacles() {
-  ctx.fillStyle='#8B4513';
-  obstacles.forEach(o => {
-    ctx.fillRect(o.x,o.y,o.width,o.height);
-  });
-}
-function drawCoins() {
-  gameCoins.forEach(c => {
-    if (!c.collected) {
-      ctx.save();
-      ctx.translate(c.x + c.width/2, c.y + c.height/2);
-      ctx.rotate(c.rotation);
-      ctx.fillStyle='#FFD700';
-      ctx.fillRect(-c.width/2,-c.height/2,c.width,c.height);
-      ctx.restore();
-    }
-  });
-}
-function drawParticles() {
-  particles.forEach(p => {
-    ctx.globalAlpha=p.life/p.maxLife;
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x-2,p.y-2,4,4);
-  });
-  ctx.globalAlpha=1;
-}
-function drawGoblins() {
-  goblins.forEach(g => {
-    ctx.fillStyle='green';
-    ctx.fillRect(g.x,g.y,g.width,g.height);
-  });
-}
-function drawLives() {
-  // Already handled with DOM images
-}
-
-// ==================== Start game loop ====================
 gameLoop();
+
 </script>
 </body>
 </html>
