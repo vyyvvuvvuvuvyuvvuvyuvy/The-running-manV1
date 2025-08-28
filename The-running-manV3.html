@@ -36,7 +36,6 @@ canvas {
 .heart {
   width: 24px;
   height: 24px;
-  cursor: pointer;
 }
 #hud {
     position: absolute;
@@ -224,6 +223,8 @@ const characters = [
 ];
 
 let ownedCharacters = JSON.parse(localStorage.getItem('ownedCharacters')) || { 'Default': true };
+if (!ownedCharacters['Goblin']) ownedCharacters['Goblin']=false;
+if (!ownedCharacters['Knight']) ownedCharacters['Knight']=false;
 let currentCharacter = localStorage.getItem('currentCharacter') || 'Default';
 
 // ==================== Player & Game Objects ====================
@@ -266,7 +267,6 @@ function updateDisplays() {
   document.getElementById('menuCoins').textContent = coins;
   document.getElementById('shopCoins').textContent = coins;
 }
-
 function updateShopItems() {
   const doubleJumpItem = document.getElementById('doubleJumpItem');
   const speedBoostItem = document.getElementById('speedBoostItem');
@@ -288,7 +288,6 @@ function updateShopItems() {
     coinMagnetItem.querySelector('button').disabled = true;
   }
 }
-
 function buyUpgrade(upgrade, cost) {
   if (coins >= cost && !upgrades[upgrade]) {
     coins -= cost;
@@ -300,7 +299,6 @@ function buyUpgrade(upgrade, cost) {
     applyUpgrades();
   }
 }
-
 function applyUpgrades() {
   if (upgrades.doubleJump) {
     player.jumpPower = -14;
@@ -311,45 +309,40 @@ function applyUpgrades() {
     gameSpeed = Math.max(4.5, gameSpeed);
   }
 }
-
 function loadCharacter(name) {
   currentCharacter = name;
   localStorage.setItem('currentCharacter', name);
-  const ch = characters.find(c => c.name === name);
-  if (ch) {
-    player.pixelData = ch.pixelData;
+  const c = characters.find(c => c.name === name);
+  if (c) {
+    player.pixelData = c.pixelData;
   }
 }
-
 function openCharacterShop() {
-  gameState = 'characterShop';
-  document.getElementById('menu').style.display = 'none';
-  document.getElementById('gameOver').style.display = 'none';
-  document.getElementById('shop').style.display = 'none';
-  document.getElementById('characterShop').style.display = 'block';
+  gameState='characterShop';
+  document.getElementById('menu').style.display='none';
+  document.getElementById('gameOver').style.display='none';
+  document.getElementById('shop').style.display='none';
+  document.getElementById('characterShop').style.display='block';
   populateCharacterList();
 }
-function closeCharacterShop() {
-  document.getElementById('characterShop').style.display = 'none';
-  showMenu();
-}
+function closeCharacterShop() { showMenu(); }
 function populateCharacterList() {
-  const container = document.getElementById('characterList');
-  container.innerHTML = '';
+  const container=document.getElementById('characterList');
+  container.innerHTML='';
   characters.forEach(c => {
-    const div = document.createElement('div');
-    div.style.margin = '10px';
-    div.style.border = '2px solid #ccc';
-    div.style.borderRadius = '10px';
-    div.style.padding = '10px';
-    div.style.cursor = 'pointer';
-    div.onclick = () => {
+    const div=document.createElement('div');
+    div.style.margin='10px';
+    div.style.border='2px solid #ccc';
+    div.style.borderRadius='10px';
+    div.style.padding='10px';
+    div.style.cursor='pointer';
+    div.onclick=()=>{
       if (ownedCharacters[c.name]) {
         loadCharacter(c.name);
         localStorage.setItem('currentCharacter', c.name);
-      } else if (coins >= c.price) {
-        coins -= c.price;
-        ownedCharacters[c.name] = true;
+      } else if (coins>=c.price) {
+        coins-=c.price;
+        ownedCharacters[c.name]=true;
         localStorage.setItem('ownedCharacters', JSON.stringify(ownedCharacters));
         localStorage.setItem('runningManCoins', coins);
         loadCharacter(c.name);
@@ -360,507 +353,17 @@ function populateCharacterList() {
         alert('Not enough coins!');
       }
     };
-    div.innerHTML = `<h3>${c.name}</h3><p>Price: ${c.price} coins</p>`;
+    div.innerHTML=`<h3>${c.name}</h3><p>Price: ${c.price} coins</p>`;
     if (ownedCharacters[c.name]) {
-      div.innerHTML += '<p style="color:green;">Owned - Click to select</p>';
+      div.innerHTML+='<p style="color:green;">Owned - Click to select</p>';
     } else {
-      div.innerHTML += `<p>Click to buy</p>`;
+      div.innerHTML+=`<p>Click to buy</p>`;
     }
     container.appendChild(div);
   });
 }
 
-// ==================== Game Control ====================
-function startGame() {
-  gameState = 'playing';
-  score = 0;
-  coinsThisRun = 0;
-  lives = 3;
-  resetHearts();
-
-  // Reset player position and state
-  player.x = 100;
-  player.y = 200;
-  player.velocityY = 0;
-  player.onGround = false;
-  player.jumpCount = 0;
-
-  // Reset game speed
-  if (upgrades.speedBoost) {
-    gameSpeed = 4.5;
-  } else {
-    gameSpeed = 3;
-  }
-
-  // Apply upgrades
-  applyUpgrades();
-
-  // Clear arrays
-  obstacles = [];
-  gameCoins = [];
-  particles = [];
-  goblins = [];
-
-  // Hide menus
-  document.getElementById('menu').style.display = 'none';
-  document.getElementById('gameOver').style.display = 'none';
-  document.getElementById('shop').style.display = 'none';
-  document.getElementById('characterShop').style.display = 'none';
-}
-
-function gameOver() {
-  gameState = 'gameOver';
-  if (score > highScore) {
-    highScore = score;
-    localStorage.setItem('runningManHighScore', highScore);
-  }
-  coins += coinsThisRun;
-  localStorage.setItem('runningManCoins', coins);
-  document.getElementById('finalScore').textContent = score;
-  document.getElementById('coinsCollected').textContent = coinsThisRun;
-  document.getElementById('totalCoins').textContent = coins;
-  document.getElementById('gameOver').style.display = 'flex';
-  updateDisplays();
-}
-
-function resetHearts() {
-  lives = 3;
-  for (let i=1; i<=3; i++) {
-    document.getElementById('heart'+i).src='https://img.icons8.com/emoji/48/000000/red-heart-emoji.png';
-  }
-}
-
-function loseLife() {
-  lives--;
-  if (lives >= 1) {
-    document.getElementById('heart'+lives).src='https://img.icons8.com/emoji/48/000000/white-heart-emoji.png';
-  }
-  if (lives <= 0) {
-    gameOver();
-  }
-}
-
-// ==================== Player Controls ====================
-function jump() {
-  if (player.jumpCount < player.maxJumps) {
-    player.velocityY = player.jumpPower;
-    player.jumpCount++;
-    player.onGround = false;
-  }
-}
-
-// ==================== Spawn Functions ====================
-function spawnObstacle() {
-  if (obstacles.length === 0 || (Math.random() < obstacleSpawnRate && obstacles[obstacles.length - 1].x < canvas.width - 200)) {
-    const height = Math.random() * 60 + 30;
-    obstacles.push({
-      x: canvas.width,
-      y: groundY - height,
-      width: Math.random() * 30 + 20,
-      height: height,
-      color: '#8B4513'
-    });
-  }
-}
-function spawnCoin() {
-  if (gameCoins.length === 0 || (Math.random() < coinSpawnRate && gameCoins[gameCoins.length - 1].x < canvas.width - 150)) {
-    const coinY = groundY - Math.random() * 150 - 50;
-    gameCoins.push({
-      x: canvas.width,
-      y: coinY,
-      width: 20,
-      height: 20,
-      collected: false,
-      rotation: 0,
-      magnetized: false
-    });
-  }
-}
-
-// Spawn Goblin
-function spawnGoblin() {
-  if (Math.random() < 0.005) { // spawn rate
-    goblins.push({
-      x: canvas.width,
-      y: groundY - 30,
-      width: 30,
-      height: 30,
-      speed: 2 + Math.random() * 1.5,
-      alive: true
-    });
-  }
-}
-
-// ==================== Update Functions ====================
-function updatePlayer() {
-  player.velocityY += gravity;
-  player.y += player.velocityY;
-
-  // Ground collision
-  if (player.y + player.height >= groundY) {
-    player.y = groundY - player.height;
-    player.velocityY = 0;
-    player.onGround = true;
-    player.jumpCount = 0;
-  } else {
-    player.onGround = false;
-  }
-
-  if (player.y < 0) {
-    player.y = 0;
-    player.velocityY = 0;
-  }
-}
-
-function updateObstacles() {
-  for (let i=obstacles.length -1; i>=0; i--) {
-    obstacles[i].x -= gameSpeed;
-    if (obstacles[i].x + obstacles[i].width < 0) {
-      obstacles.splice(i,1);
-    }
-  }
-}
-
-function updateCoins() {
-  for (let i=gameCoins.length -1; i>=0; i--) {
-    const c=gameCoins[i];
-    if (!c.collected) {
-      // Magnet effect
-      if (upgrades.coinMagnet) {
-        const dx = (player.x+player.width/2) - (c.x+c.width/2);
-        const dy = (player.y+player.height/2) - (c.y+c.height/2);
-        const dist = Math.sqrt(dx*dx+dy*dy);
-        if (dist < 80) {
-          c.x += dx*0.1;
-          c.y += dy*0.1;
-          c.magnetized = true;
-        }
-      }
-      c.x -= gameSpeed;
-      c.rotation += 0.1;
-      // Check collection
-      if (
-        player.x < c.x + c.width &&
-        player.x + player.width > c.x &&
-        player.y < c.y + c.height &&
-        player.y + player.height > c.y
-      ) {
-        c.collected=true;
-        coinsThisRun++;
-        for (let j=0;j<8;j++){
-          particles.push({x:c.x+c.width/2,y:c.y+c.height/2,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8,life:30,maxLife:30,color:'#FFD700'});
-        }
-      }
-    }
-    if (c.x + c.width < 0 || c.collected) {
-      gameCoins.splice(i,1);
-    }
-  }
-}
-
-function updateGoblins() {
-  for (let i=goblins.length -1; i>=0; i--) {
-    let g=goblins[i];
-    g.x -= g.speed;
-    if (g.x + g.width < 0) {
-      goblins.splice(i,1);
-      continue;
-    }
-    // Check collision with player
-    if (
-      player.x < g.x + g.width &&
-      player.x + player.width > g.x &&
-      player.y < g.y + g.height &&
-      player.y + player.height > g.y
-    ) {
-      // Collision
-      loseLife();
-      goblins.splice(i,1);
-    }
-  }
-}
-
-function updateParticles() {
-  for (let i=particles.length -1; i>=0; i--) {
-    const p=particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.2;
-    p.life--;
-    if (p.life<=0) particles.splice(i,1);
-  }
-}
-
-// ==================== Drawing Functions ====================
-function drawPlayer() {
-  ctx.fillStyle=player.color;
-  if (player.pixelData) {
-    const pixelSize=4;
-    player.pixelData.forEach((row, yIdx) => {
-      for (let xIdx=0; xIdx<row.length; xIdx++) {
-        if (row[xIdx]!==' ') {
-          ctx.fillStyle='#00FF00';
-          ctx.fillRect(player.x + xIdx * pixelSize, player.y + yIdx*pixelSize, pixelSize, pixelSize);
-        }
-      }
-    });
-  } else {
-    ctx.fillRect(player.x,player.y,player.width,player.height);
-  }
-}
-
-function drawObstacles() {
-  ctx.fillStyle='#8B4513';
-  obstacles.forEach(o => {
-    ctx.fillRect(o.x,o.y,o.width,o.height);
-  });
-}
-
-function drawCoins() {
-  gameCoins.forEach(c => {
-    if (!c.collected) {
-      ctx.save();
-      ctx.translate(c.x + c.width/2, c.y + c.height/2);
-      ctx.rotate(c.rotation);
-      ctx.fillStyle='#FFD700';
-      ctx.fillRect(-c.width/2,-c.height/2,c.width,c.height);
-      ctx.restore();
-    }
-  });
-}
-
-function drawParticles() {
-  particles.forEach(p => {
-    ctx.globalAlpha=p.life/p.maxLife;
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x-2,p.y-2,4,4);
-  });
-  ctx.globalAlpha=1;
-}
-
-function drawGoblins() {
-  ctx.fillStyle='green';
-  goblins.forEach(g => {
-    ctx.fillRect(g.x,g.y,g.width,g.height);
-  });
-}
-
-function drawGround() {
-  ctx.fillStyle='#228B22';
-  ctx.fillRect(0,groundY,canvas.width,canvas.height - groundY);
-  ctx.fillStyle='#32CD32';
-  for (let x=0;x<canvas.width;x+=20) {
-    ctx.fillRect(x,groundY,2,5);
-    ctx.fillRect(x+5,groundY,2,3);
-    ctx.fillRect(x+10,groundY,2,4);
-    ctx.fillRect(x+15,groundY,2,6);
-  }
-}
-
-function drawBackground() {
-  const gradient=ctx.createLinearGradient(0,0,0,canvas.height);
-  gradient.addColorStop(0,'#87CEEB');
-  gradient.addColorStop(1,'#98FB98');
-  ctx.fillStyle=gradient;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='rgba(255,255,255,0.8)';
-  const cloudOffset=(score*0.5)%200;
-  for (let i=0;i<4;i++) {
-    const x=i*200 - cloudOffset;
-    ctx.beginPath();
-    ctx.arc(x,60,20,0,Math.PI*2);
-    ctx.arc(x+20,60,25,0,Math.PI*2);
-    ctx.arc(x+40,60,20,0,Math.PI*2);
-    ctx.fill();
-  }
-}
-
-function drawLives() {
-  // Hearts are DOM elements
-}
-
-// ==================== Main Game Loop ====================
-function gameLoop() {
-  if (gameState==='playing') {
-    updatePlayer();
-    updateObstacles();
-    updateCoins();
-    updateParticles();
-    updateGoblins();
-    spawnObstacle();
-    spawnCoin();
-    spawnGoblin();
-
-    // Increase difficulty
-    gameSpeed+=0.0005;
-    obstacleSpawnRate=Math.min(0.03,obstacleSpawnRate+0.00001);
-    score++;
-    updateDisplays();
-  }
-
-  // Drawing
-  drawBackground();
-  drawGround();
-  drawObstacles();
-  drawCoins();
-  drawParticles();
-  drawGoblins();
-  if (gameState==='playing') drawPlayer();
-
-  drawLives();
-
-  requestAnimationFrame(gameLoop);
-}
-
-// ==================== Event Listeners ====================
-document.addEventListener('keydown', e => {
-  if (gameState==='playing' && e.code==='Space') {
-    e.preventDefault();
-    jump();
-  }
-});
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  if (gameState==='playing') jump();
-});
-
-// ==================== Initialization & Start ====================
-updateDisplays();
-updateShopItems();
-populateCharacterList();
-loadCharacter(currentCharacter);
-resetHearts();
-gameLoop();
-
-// ==================== Helper Functions ====================
-function showMenu() {
-  gameState='menu';
-  document.getElementById('menu').style.display='flex';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='none';
-  document.getElementById('characterShop').style.display='none';
-}
-function openShop() {
-  gameState='shop';
-  document.getElementById('menu').style.display='none';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='flex';
-  document.getElementById('characterShop').style.display='none';
-}
-function closeShop() {
-  showMenu();
-}
-function startGame() {
-  // Reset player
-  player.x=100;
-  player.y=200;
-  player.velocityY=0;
-  player.onGround=false;
-  player.jumpCount=0;
-  // Reset speed
-  gameSpeed=upgrades.speedBoost ? 4.5 : 3;
-  // Reset arrays
-  obstacles=[]; gameCoins=[]; particles=[]; goblins=[];
-  // Reset lives
-  resetHearts();
-  gameState='playing';
-}
-
-function gameOver() {
-  if (score>highScore) {
-    highScore=score;
-    localStorage.setItem('runningManHighScore', highScore);
-  }
-  coins+=coinsThisRun;
-  localStorage.setItem('runningManCoins', coins);
-  document.getElementById('finalScore').textContent=score;
-  document.getElementById('coinsCollected').textContent=coinsThisRun;
-  document.getElementById('totalCoins').textContent=coins;
-  document.getElementById('gameOver').style.display='flex';
-  gameState='gameOver';
-}
-
-// Lives hearts
-function resetHearts() {
-  lives=3;
-  for (let i=1;i<=3;i++) {
-    document.getElementById('heart'+i).src='https://img.icons8.com/emoji/48/000000/red-heart-emoji.png';
-  }
-}
-function loseLife() {
-  lives--;
-  if (lives>=1) {
-    document.getElementById('heart'+lives).src='https://img.icons8.com/emoji/48/000000/white-heart-emoji.png';
-  }
-  if (lives<=0) {
-    gameOver();
-  }
-}
-
-// Jump
-function jump() {
-  if (player.jumpCount<player.maxJumps) {
-    player.velocityY=player.jumpPower;
-    player.jumpCount++;
-    player.onGround=false;
-  }
-}
-
-// ==================== Spawn Functions ====================
-function spawnObstacle() {
-  if (obstacles.length===0 || (Math.random()<obstacleSpawnRate && obstacles[obstacles.length-1].x<canvas.width-200)) {
-    const height=Math.random()*60+30;
-    obstacles.push({x:canvas.width,y:groundY-height,width:Math.random()*30+20,height:height,color:'#8B4513'});
-  }
-}
-function spawnCoin() {
-  if (gameCoins.length===0 || (Math.random()<coinSpawnRate && gameCoins[gameCoins.length-1].x<canvas.width-150)) {
-    const coinY=groundY - Math.random()*150 -50;
-    gameCoins.push({x:canvas.width,y:coinY,width:20,height:20,collected:false,rotation:0,magnetized:false});
-  }
-}
-function spawnGoblin() {
-  if (Math.random()<0.005) {
-    goblins.push({x:canvas.width,y:groundY-30,width:30,height:30,speed:2+Math.random()*1.5,alive:true});
-  }
-}
-
-// ==================== Pixel Character Data ====================
-const defaultPixelData = [
-  ' 111 ',
-  '1 1 1',
-  ' 1  ',
-  '1 1 ',
-  ' 1  '
-];
-
-const goblinPixelData = [
-  ' 222 ',
-  '22222',
-  ' 2  ',
-  '2222 ',
-  ' 22  '
-];
-
-const knightPixelData = [
-  ' 333 ',
-  '33333',
-  ' 3  ',
-  '3 3 ',
-  ' 3  '
-];
-
-// Load character
-function loadCharacter(name) {
-  currentCharacter = name;
-  localStorage.setItem('currentCharacter', name);
-  const ch=characters.find(c=>c.name===name);
-  if (ch) {
-    player.pixelData=ch.pixelData;
-  }
-}
-
-// ==================== Game Update & Draw ====================
+// ==================== Main Loop & Update ====================
 function update() {
   if (gameState==='playing') {
     updatePlayer();
@@ -881,7 +384,6 @@ function update() {
   }
 }
 function draw() {
-  // Clear background
   drawBackground();
   drawGround();
   drawObstacles();
@@ -896,7 +398,6 @@ function gameLoop() {
   draw();
   requestAnimationFrame(gameLoop);
 }
-gameLoop();
 
 // ==================== Event Listeners ====================
 document.addEventListener('keydown', e => {
@@ -988,506 +489,10 @@ function drawGoblins() {
   });
 }
 function drawLives() {
-  // Hearts are DOM elements, no need to draw here
+  // Lives are DOM images
 }
 
 // ==================== Controls ====================
-function showMenu() {
-  gameState='menu';
-  document.getElementById('menu').style.display='flex';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='none';
-  document.getElementById('characterShop').style.display='none';
-}
-function openShop() {
-  gameState='shop';
-  document.getElementById('menu').style.display='none';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='flex';
-  document.getElementById('characterShop').style.display='none';
-}
-function closeShop() {
-  showMenu();
-}
-function startGame() {
-  // Reset player
-  player.x=100;
-  player.y=200;
-  player.velocityY=0;
-  player.onGround=false;
-  player.jumpCount=0;
-  gameSpeed=upgrades.speedBoost ? 4.5 : 3;
-  obstacles=[]; gameCoins=[]; particles=[]; goblins=[];
-  resetHearts();
-  gameState='playing';
-}
-
-// ==================== Pixel & Character Data ====================
-const defaultPixelData = [
-  ' 111 ',
-  '1 1 1',
-  ' 1  ',
-  '1 1 ',
-  ' 1  '
-];
-
-const goblinPixelData = [
-  ' 222 ',
-  '22222',
-  ' 2  ',
-  '2222 ',
-  ' 22  '
-];
-
-const knightPixelData = [
-  ' 333 ',
-  '33333',
-  ' 3  ',
-  '3 3 ',
-  ' 3  '
-];
-
-function loadCharacter(name) {
-  localStorage.setItem('currentCharacter', name);
-  const c=characters.find(c=>c.name===name);
-  if (c) {
-    player.pixelData=c.pixelData;
-  }
-}
-
-// ==================== Character Shop ====================
-function openCharacterShop() {
-  gameState='characterShop';
-  document.getElementById('menu').style.display='none';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='none';
-  document.getElementById('characterShop').style.display='block';
-  populateCharacterList();
-}
-function closeCharacterShop() {
-  showMenu();
-}
-function populateCharacterList() {
-  const container=document.getElementById('characterList');
-  container.innerHTML='';
-  characters.forEach(c => {
-    const div=document.createElement('div');
-    div.style.margin='10px';
-    div.style.border='2px solid #ccc';
-    div.style.borderRadius='10px';
-    div.style.padding='10px';
-    div.style.cursor='pointer';
-    div.onclick=()=>{
-      if (ownedCharacters[c.name]) {
-        loadCharacter(c.name);
-        localStorage.setItem('currentCharacter', c.name);
-      } else if (coins>=c.price) {
-        coins-=c.price;
-        ownedCharacters[c.name]=true;
-        localStorage.setItem('ownedCharacters', JSON.stringify(ownedCharacters));
-        localStorage.setItem('runningManCoins', coins);
-        loadCharacter(c.name);
-        localStorage.setItem('currentCharacter', c.name);
-        updateDisplays();
-        populateCharacterList();
-      } else {
-        alert('Not enough coins!');
-      }
-    };
-    div.innerHTML=`<h3>${c.name}</h3><p>Price: ${c.price} coins</p>`;
-    if (ownedCharacters[c.name]) {
-      div.innerHTML+='<p style="color:green;">Owned - Click to select</p>';
-    } else {
-      div.innerHTML+=`<p>Click to buy</p>`;
-    }
-    container.appendChild(div);
-  });
-}
-
-// ==================== Animate & Run ====================
-function jump() {
-  if (player.jumpCount<player.maxJumps) {
-    player.velocityY=player.jumpPower;
-    player.jumpCount++;
-    player.onGround=false;
-  }
-}
-function spawnObstacle() {
-  if (obstacles.length===0 || (Math.random()<obstacleSpawnRate && obstacles[obstacles.length-1].x<canvas.width-200)) {
-    const height=Math.random()*60+30;
-    obstacles.push({x:canvas.width,y:groundY-height,width:Math.random()*30+20,height:height,color:'#8B4513'});
-  }
-}
-function spawnCoin() {
-  if (gameCoins.length===0 || (Math.random()<coinSpawnRate && gameCoins[gameCoins.length-1].x<canvas.width-150)) {
-    const y=groundY - Math.random()*150 -50;
-    gameCoins.push({x:canvas.width,y:y,width:20,height:20,collected:false,rotation:0,magnetized:false});
-  }
-}
-function spawnGoblin() {
-  if (Math.random()<0.005) {
-    goblins.push({x:canvas.width,y:groundY-30,width:30,height:30,speed:2+Math.random()*1.5,alive:true});
-  }
-}
-
-function update() {
-  if (gameState==='playing') {
-    updatePlayer();
-    updateObstacles();
-    updateCoins();
-    updateParticles();
-    updateGoblins();
-
-    spawnObstacle();
-    spawnCoin();
-    spawnGoblin();
-
-    // Increase difficulty
-    gameSpeed+=0.0005;
-    obstacleSpawnRate=Math.min(0.03,obstacleSpawnRate+0.00001);
-    score++;
-    updateDisplays();
-  }
-}
-function draw() {
-  drawBackground();
-  drawGround();
-  drawObstacles();
-  drawCoins();
-  drawParticles();
-  drawGoblins();
-  if (gameState==='playing') drawPlayer();
-  drawLives();
-}
-
-function gameLoop() {
-  update();
-  draw();
-  requestAnimationFrame(gameLoop);
-}
-
-// ==================== Event Listeners ====================
-document.addEventListener('keydown', e => {
-  if (gameState==='playing' && e.code==='Space') {
-    e.preventDefault();
-    jump();
-  }
-});
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  if (gameState==='playing') jump();
-});
-
-// ==================== Drawing ====================
-function drawBackground() {
-  const gradient=ctx.createLinearGradient(0,0,0,canvas.height);
-  gradient.addColorStop(0,'#87CEEB');
-  gradient.addColorStop(1,'#98FB98');
-  ctx.fillStyle=gradient;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='rgba(255,255,255,0.8)';
-  const cloudOffset=(score*0.5)%200;
-  for (let i=0;i<4;i++) {
-    const x=i*200 - cloudOffset;
-    ctx.beginPath();
-    ctx.arc(x,60,20,0,Math.PI*2);
-    ctx.arc(x+20,60,25,0,Math.PI*2);
-    ctx.arc(x+40,60,20,0,Math.PI*2);
-    ctx.fill();
-  }
-}
-function drawGround() {
-  ctx.fillStyle='#228B22';
-  ctx.fillRect(0,groundY,canvas.width,canvas.height - groundY);
-  ctx.fillStyle='#32CD32';
-  for (let x=0;x<canvas.width;x+=20) {
-    ctx.fillRect(x,groundY,2,5);
-    ctx.fillRect(x+5,groundY,2,3);
-    ctx.fillRect(x+10,groundY,2,4);
-    ctx.fillRect(x+15,groundY,2,6);
-  }
-}
-function drawPlayer() {
-  ctx.fillStyle=player.color;
-  if (player.pixelData) {
-    const pixelSize=4;
-    player.pixelData.forEach((row, yIdx) => {
-      for (let xIdx=0; xIdx<row.length; xIdx++) {
-        if (row[xIdx]!==' ') {
-          ctx.fillStyle='#00FF00';
-          ctx.fillRect(player.x + xIdx * pixelSize, player.y + yIdx*pixelSize, pixelSize, pixelSize);
-        }
-      }
-    });
-  } else {
-    ctx.fillRect(player.x,player.y,player.width,player.height);
-  }
-}
-function drawObstacles() {
-  ctx.fillStyle='#8B4513';
-  obstacles.forEach(o => {
-    ctx.fillRect(o.x,o.y,o.width,o.height);
-  });
-}
-function drawCoins() {
-  gameCoins.forEach(c => {
-    if (!c.collected) {
-      ctx.save();
-      ctx.translate(c.x + c.width/2, c.y + c.height/2);
-      ctx.rotate(c.rotation);
-      ctx.fillStyle='#FFD700';
-      ctx.fillRect(-c.width/2,-c.height/2,c.width,c.height);
-      ctx.restore();
-    }
-  });
-}
-function drawParticles() {
-  particles.forEach(p => {
-    ctx.globalAlpha=p.life/p.maxLife;
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x-2,p.y-2,4,4);
-  });
-  ctx.globalAlpha=1;
-}
-function drawGoblins() {
-  goblins.forEach(g => {
-    ctx.fillStyle='green';
-    ctx.fillRect(g.x,g.y,g.width,g.height);
-  });
-}
-function drawLives() {
-  // Hearts are DOM elements
-}
-
-// ==================== UI Control Functions ====================
-function showMenu() {
-  gameState='menu';
-  document.getElementById('menu').style.display='flex';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='none';
-  document.getElementById('characterShop').style.display='none';
-}
-function openShop() {
-  gameState='shop';
-  document.getElementById('menu').style.display='none';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='flex';
-  document.getElementById('characterShop').style.display='none';
-}
-function closeShop() {
-  showMenu();
-}
-function startGame() {
-  // Reset player
-  player.x=100;
-  player.y=200;
-  player.velocityY=0;
-  player.onGround=false;
-  player.jumpCount=0;
-  gameSpeed=upgrades.speedBoost ? 4.5 : 3;
-  obstacles=[]; gameCoins=[]; particles=[]; goblins=[];
-  resetHearts();
-  gameState='playing';
-}
-
-// ==================== Pixel & Character Data ====================
-const characters = [
-  { name: 'Default', pixelData: [' 111 ','1 1 1',' 1  ','1 1 ',' 1  '], price: 0 },
-  { name: 'Goblin', pixelData: [' 222 ','22222',' 2  ','2222 ',' 22  '], price: 100 },
-  { name: 'Knight', pixelData: [' 333 ','33333',' 3  ','3 3 ',' 3  '], price: 150 }
-];
-
-const ownedCharacters = JSON.parse(localStorage.getItem('ownedCharacters')) || { 'Default': true };
-if (!ownedCharacters['Goblin']) ownedCharacters['Goblin']=false;
-if (!ownedCharacters['Knight']) ownedCharacters['Knight']=false;
-
-function loadCharacter(name) {
-  localStorage.setItem('currentCharacter', name);
-  const c=characters.find(c=>c.name===name);
-  if (c) {
-    player.pixelData=c.pixelData;
-  }
-}
-
-// ==================== Character Shop ====================
-function openCharacterShop() {
-  gameState='characterShop';
-  document.getElementById('menu').style.display='none';
-  document.getElementById('gameOver').style.display='none';
-  document.getElementById('shop').style.display='none';
-  document.getElementById('characterShop').style.display='block';
-  populateCharacterList();
-}
-function closeCharacterShop() {
-  showMenu();
-}
-function populateCharacterList() {
-  const container=document.getElementById('characterList');
-  container.innerHTML='';
-  characters.forEach(c => {
-    const div=document.createElement('div');
-    div.style.margin='10px';
-    div.style.border='2px solid #ccc';
-    div.style.borderRadius='10px';
-    div.style.padding='10px';
-    div.style.cursor='pointer';
-    div.onclick=()=>{
-      if (ownedCharacters[c.name]) {
-        loadCharacter(c.name);
-        localStorage.setItem('currentCharacter', c.name);
-      } else if (coins>=c.price) {
-        coins-=c.price;
-        ownedCharacters[c.name]=true;
-        localStorage.setItem('ownedCharacters', JSON.stringify(ownedCharacters));
-        localStorage.setItem('runningManCoins', coins);
-        loadCharacter(c.name);
-        localStorage.setItem('currentCharacter', c.name);
-        updateDisplays();
-        populateCharacterList();
-      } else {
-        alert('Not enough coins!');
-      }
-    };
-    div.innerHTML=`<h3>${c.name}</h3><p>Price: ${c.price} coins</p>`;
-    if (ownedCharacters[c.name]) {
-      div.innerHTML+='<p style="color:green;">Owned - Click to select</p>';
-    } else {
-      div.innerHTML+=`<p>Click to buy</p>`;
-    }
-    container.appendChild(div);
-  });
-}
-
-// ==================== Main Loop & Logic ====================
-function update() {
-  if (gameState==='playing') {
-    updatePlayer();
-    updateObstacles();
-    updateCoins();
-    updateParticles();
-    updateGoblins();
-
-    spawnObstacle();
-    spawnCoin();
-    spawnGoblin();
-
-    // Increase difficulty
-    gameSpeed+=0.0005;
-    obstacleSpawnRate=Math.min(0.03,obstacleSpawnRate+0.00001);
-    score++;
-    updateDisplays();
-  }
-}
-function draw() {
-  drawBackground();
-  drawGround();
-  drawObstacles();
-  drawCoins();
-  drawParticles();
-  drawGoblins();
-  if (gameState==='playing') drawPlayer();
-  drawLives();
-}
-function gameLoop() {
-  update();
-  draw();
-  requestAnimationFrame(gameLoop);
-}
-
-// ==================== Event Listeners ====================
-document.addEventListener('keydown', e => {
-  if (gameState==='playing' && e.code==='Space') {
-    e.preventDefault();
-    jump();
-  }
-});
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  if (gameState==='playing') jump();
-});
-
-// ==================== Drawing Functions ====================
-function drawBackground() {
-  const gradient=ctx.createLinearGradient(0,0,0,canvas.height);
-  gradient.addColorStop(0,'#87CEEB');
-  gradient.addColorStop(1,'#98FB98');
-  ctx.fillStyle=gradient;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='rgba(255,255,255,0.8)';
-  const cloudOffset=(score*0.5)%200;
-  for (let i=0;i<4;i++) {
-    const x=i*200 - cloudOffset;
-    ctx.beginPath();
-    ctx.arc(x,60,20,0,Math.PI*2);
-    ctx.arc(x+20,60,25,0,Math.PI*2);
-    ctx.arc(x+40,60,20,0,Math.PI*2);
-    ctx.fill();
-  }
-}
-function drawGround() {
-  ctx.fillStyle='#228B22';
-  ctx.fillRect(0,groundY,canvas.width,canvas.height - groundY);
-  ctx.fillStyle='#32CD32';
-  for (let x=0;x<canvas.width;x+=20) {
-    ctx.fillRect(x,groundY,2,5);
-    ctx.fillRect(x+5,groundY,2,3);
-    ctx.fillRect(x+10,groundY,2,4);
-    ctx.fillRect(x+15,groundY,2,6);
-  }
-}
-function drawPlayer() {
-  ctx.fillStyle=player.color;
-  if (player.pixelData) {
-    const pixelSize=4;
-    player.pixelData.forEach((row, yIdx) => {
-      for (let xIdx=0; xIdx<row.length; xIdx++) {
-        if (row[xIdx]!==' ') {
-          ctx.fillStyle='#00FF00';
-          ctx.fillRect(player.x + xIdx * pixelSize, player.y + yIdx*pixelSize, pixelSize, pixelSize);
-        }
-      }
-    });
-  } else {
-    ctx.fillRect(player.x,player.y,player.width,player.height);
-  }
-}
-function drawObstacles() {
-  ctx.fillStyle='#8B4513';
-  obstacles.forEach(o => {
-    ctx.fillRect(o.x,o.y,o.width,o.height);
-  });
-}
-function drawCoins() {
-  gameCoins.forEach(c => {
-    if (!c.collected) {
-      ctx.save();
-      ctx.translate(c.x + c.width/2, c.y + c.height/2);
-      ctx.rotate(c.rotation);
-      ctx.fillStyle='#FFD700';
-      ctx.fillRect(-c.width/2,-c.height/2,c.width,c.height);
-      ctx.restore();
-    }
-  });
-}
-function drawParticles() {
-  particles.forEach(p => {
-    ctx.globalAlpha=p.life/p.maxLife;
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x-2,p.y-2,4,4);
-  });
-  ctx.globalAlpha=1;
-}
-function drawGoblins() {
-  goblins.forEach(g => {
-    ctx.fillStyle='green';
-    ctx.fillRect(g.x,g.y,g.width,g.height);
-  });
-}
-function drawLives() {
-  // Hearts are DOM elements
-}
-
-// ==================== UI Control ====================
 function showMenu() {
   gameState='menu';
   document.getElementById('menu').style.display='flex';
@@ -1523,12 +528,11 @@ player.pixelData=characters.find(c=>c.name===localStorage.getItem('currentCharac
 
 // ==================== Handle Coin & Lives in DOM ====================
 function drawLives() {
-  // This is handled by DOM images
+  // Lives are DOM images, handled outside canvas
 }
 
 // ==================== Main Loop ====================
 gameLoop();
-
 </script>
 </body>
 </html>
