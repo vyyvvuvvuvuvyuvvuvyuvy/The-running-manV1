@@ -228,6 +228,14 @@ if (!ownedCharacters['Knight']) ownedCharacters['Knight']=false;
 let currentCharacter = localStorage.getItem('currentCharacter') || 'Default';
 
 // ==================== Player & Game Objects ====================
+const defaultPixelData=[
+  ' 111 ',
+  '1 1 1',
+  ' 1  ',
+  '1 1 ',
+  ' 1  '
+];
+
 const player = {
     x: 100,
     y: 200,
@@ -239,61 +247,64 @@ const player = {
     maxJumps: 2,
     jumpPower: -12,
     color: '#FF6B6B',
-    pixelData: null  // Will be set based on character
+    pixelData: null
 };
+
+// Initialize player's pixelData after loading character
+player.pixelData = characters.find(c=>c.name===localStorage.getItem('currentCharacter'))?.pixelData || defaultPixelData;
 
 // Game objects
 let obstacles = [];
 let gameCoins = [];
 let particles = [];
-let goblins = []; // Goblin enemies
+let goblins = [];
 
 // Settings
-const gravity = 0.6;
-const groundY = canvas.height - 50;
-let gameSpeed = 3;
-let obstacleSpawnRate = 0.02;
-let coinSpawnRate = 0.015;
+const gravity=0.6;
+const groundY=canvas.height - 50;
+let gameSpeed=3;
+let obstacleSpawnRate=0.02;
+let coinSpawnRate=0.015;
 
 // Lives
-let lives = 3;
+let lives=3;
 
 // ==================== Utility Functions ====================
 function updateDisplays() {
-  document.getElementById('scoreDisplay').textContent = score;
-  document.getElementById('highScoreDisplay').textContent = highScore;
-  document.getElementById('coinDisplay').textContent = coins;
-  document.getElementById('coinsThisRunDisplay').textContent = coinsThisRun;
-  document.getElementById('menuCoins').textContent = coins;
-  document.getElementById('shopCoins').textContent = coins;
+  document.getElementById('scoreDisplay').textContent=score;
+  document.getElementById('highScoreDisplay').textContent=highScore;
+  document.getElementById('coinDisplay').textContent=coins;
+  document.getElementById('coinsThisRunDisplay').textContent=coinsThisRun;
+  document.getElementById('menuCoins').textContent=coins;
+  document.getElementById('shopCoins').textContent=coins;
 }
 function updateShopItems() {
-  const doubleJumpItem = document.getElementById('doubleJumpItem');
-  const speedBoostItem = document.getElementById('speedBoostItem');
-  const coinMagnetItem = document.getElementById('coinMagnetItem');
+  const doubleJumpItem=document.getElementById('doubleJumpItem');
+  const speedBoostItem=document.getElementById('speedBoostItem');
+  const coinMagnetItem=document.getElementById('coinMagnetItem');
 
   if (upgrades.doubleJump) {
     doubleJumpItem.classList.add('owned');
-    doubleJumpItem.querySelector('button').textContent = 'Owned';
-    doubleJumpItem.querySelector('button').disabled = true;
+    doubleJumpItem.querySelector('button').textContent='Owned';
+    doubleJumpItem.querySelector('button').disabled=true;
   }
   if (upgrades.speedBoost) {
     speedBoostItem.classList.add('owned');
-    speedBoostItem.querySelector('button').textContent = 'Owned';
-    speedBoostItem.querySelector('button').disabled = true;
+    speedBoostItem.querySelector('button').textContent='Owned';
+    speedBoostItem.querySelector('button').disabled=true;
   }
   if (upgrades.coinMagnet) {
     coinMagnetItem.classList.add('owned');
-    coinMagnetItem.querySelector('button').textContent = 'Owned';
-    coinMagnetItem.querySelector('button').disabled = true;
+    coinMagnetItem.querySelector('button').textContent='Owned';
+    coinMagnetItem.querySelector('button').disabled=true;
   }
 }
 function buyUpgrade(upgrade, cost) {
   if (coins >= cost && !upgrades[upgrade]) {
     coins -= cost;
-    upgrades[upgrade] = true;
+    upgrades[upgrade]=true;
     localStorage.setItem('runningManCoins', coins);
-    localStorage.setItem(upgrade + 'Upgrade', 'true');
+    localStorage.setItem(upgrade+'Upgrade','true');
     updateDisplays();
     updateShopItems();
     applyUpgrades();
@@ -301,20 +312,22 @@ function buyUpgrade(upgrade, cost) {
 }
 function applyUpgrades() {
   if (upgrades.doubleJump) {
-    player.jumpPower = -14;
+    player.jumpPower=-14;
   } else {
-    player.jumpPower = -12;
+    player.jumpPower=-12;
   }
   if (upgrades.speedBoost) {
-    gameSpeed = Math.max(4.5, gameSpeed);
+    gameSpeed=4.5;
+  } else {
+    gameSpeed=3;
   }
 }
 function loadCharacter(name) {
-  currentCharacter = name;
-  localStorage.setItem('currentCharacter', name);
-  const c = characters.find(c => c.name === name);
-  if (c) {
-    player.pixelData = c.pixelData;
+  currentCharacter=name;
+  localStorage.setItem('currentCharacter',name);
+  const c=characters.find(c=>c.name===name);
+  if(c){
+    player.pixelData=c.pixelData;
   }
 }
 function openCharacterShop() {
@@ -341,7 +354,7 @@ function populateCharacterList() {
         loadCharacter(c.name);
         localStorage.setItem('currentCharacter', c.name);
       } else if (coins>=c.price) {
-        coins-=c.price;
+        coins -= c.price;
         ownedCharacters[c.name]=true;
         localStorage.setItem('ownedCharacters', JSON.stringify(ownedCharacters));
         localStorage.setItem('runningManCoins', coins);
@@ -376,11 +389,12 @@ function update() {
     spawnCoin();
     spawnGoblin();
 
-    // Increase difficulty
+    // Increase difficulty gradually
     gameSpeed+=0.0005;
     obstacleSpawnRate=Math.min(0.03,obstacleSpawnRate+0.00001);
     score++;
     updateDisplays();
+    checkCollisions();
   }
 }
 function draw() {
@@ -489,7 +503,7 @@ function drawGoblins() {
   });
 }
 function drawLives() {
-  // Lives are DOM images
+  // Already handled via DOM images
 }
 
 // ==================== Controls ====================
@@ -520,18 +534,256 @@ function startGame() {
   gameSpeed=upgrades.speedBoost ? 4.5 : 3;
   obstacles=[]; gameCoins=[]; particles=[]; goblins=[];
   resetHearts();
+  score=0;
+  coinsThisRun=0;
+  updateDisplays();
   gameState='playing';
 }
 
-// ==================== Initialize Player Character ====================
-player.pixelData=characters.find(c=>c.name===localStorage.getItem('currentCharacter'))?.pixelData || defaultPixelData;
-
-// ==================== Handle Coin & Lives in DOM ====================
-function drawLives() {
-  // Lives are DOM images, handled outside canvas
+// ==================== Player Control ====================
+function jump() {
+  if (player.onGround || (upgrades.doubleJump && player.jumpCount<player.maxJumps)) {
+    player.velocityY=player.jumpPower;
+    player.onGround=false;
+    player.jumpCount++;
+  }
 }
 
-// ==================== Main Loop ====================
+// ==================== Helper Functions ====================
+function resetHearts() {
+  lives=3;
+  updateHearts();
+}
+function updateHearts() {
+  for(let i=1;i<=3;i++){
+    document.getElementById('heart'+i).style.visibility= i<=lives ? 'visible':'hidden';
+  }
+}
+function checkCollisions() {
+  // Obstacles
+  obstacles.forEach((o, idx) => {
+    if (rectIntersect(player, o)) {
+      obstacles.splice(idx,1);
+      loseLife();
+    }
+  });
+  // Coins
+  for(let i=0;i<gameCoins.length;i++) {
+    const c=gameCoins[i];
+    if (!c.collected && rectIntersect(player,c)){
+      c.collected=true;
+      coins+=1;
+      coinsThisRun+=1;
+      updateDisplays();
+    }
+  }
+  // Goblins
+  goblins.forEach((g, idx) => {
+    if (rectIntersect(player,g)){
+      loseLife();
+    }
+  });
+}
+function rectIntersect(a,b) {
+  return a.x < b.x + b.width &&
+         a.x + a.width > b.x &&
+         a.y < b.y + b.height &&
+         a.y + a.height > b.y;
+}
+function loseLife() {
+  lives--;
+  updateHearts();
+  if (lives<=0) {
+    gameOver();
+  } else {
+    // Reset player position
+    player.x=100;
+    player.y=200;
+    player.velocityY=0;
+  }
+}
+function gameOver() {
+  gameState='gameOver';
+  document.getElementById('gameOver').style.display='block';
+  document.getElementById('menu').style.display='none';
+  // Save high score
+  if (score>highScore) {
+    localStorage.setItem('runningManHighScore', score);
+    highScore=score;
+  }
+  // Save total coins if needed
+}
+
+
+// ==================== Spawning Functions ====================
+function spawnObstacle() {
+  if (Math.random() < obstacleSpawnRate) {
+    obstacles.push({
+      x: canvas.width,
+      y: groundY - 20,
+      width: 20,
+      height: 20
+    });
+  }
+}
+function spawnCoin() {
+  if (Math.random() < coinSpawnRate) {
+    gameCoins.push({
+      x: Math.random() * (canvas.width - 10),
+      y: Math.random() * (groundY - 100),
+      width: 10,
+      height: 10,
+      collected:false,
+      rotation: Math.random()*Math.PI*2
+    });
+  }
+}
+function spawnGoblin() {
+  if (Math.random() < obstacleSpawnRate) {
+    goblins.push({
+      x: canvas.width,
+      y: groundY - 40,
+      width: 40,
+      height: 40,
+      speed: gameSpeed + 1
+    });
+  }
+}
+
+// ==================== Update Functions ====================
+function updatePlayer() {
+  // Apply gravity
+  player.velocityY += gravity;
+  player.y += player.velocityY;
+
+  // Check ground collision
+  if (player.y + player.height >= groundY) {
+    player.y=groundY - player.height;
+    player.velocityY=0;
+    player.onGround=true;
+    player.jumpCount=0;
+  } else {
+    player.onGround=false;
+  }
+}
+function updateObstacles() {
+  for(let i=obstacles.length-1;i>=0;i--) {
+    obstacles[i].x -= gameSpeed;
+    if (obstacles[i].x + obstacles[i].width <0) {
+      obstacles.splice(i,1);
+    }
+  }
+}
+function updateCoins() {
+  for(let i=gameCoins.length-1;i>=0;i--) {
+    const c=gameCoins[i];
+    c.x -= gameSpeed;
+    c.rotation+=0.1;
+    if (c.x + c.width <0 || c.collected) {
+      gameCoins.splice(i,1);
+    }
+  }
+}
+function updateGoblins() {
+  for(let i=goblins.length-1;i>=0;i--) {
+    goblins[i].x -= goblins[i].speed;
+    if (goblins[i].x + goblins[i].width <0) {
+      goblins.splice(i,1);
+    }
+  }
+}
+function updateParticles() {
+  for(let i=particles.length-1;i>=0;i--) {
+    const p=particles[i];
+    p.x+=p.vx;
+    p.y+=p.vy;
+    p.life--;
+    if (p.life<=0) particles.splice(i,1);
+  }
+}
+
+// ==================== Drawing functions ====================
+function drawBackground() {
+  const gradient=ctx.createLinearGradient(0,0,0,canvas.height);
+  gradient.addColorStop(0,'#87CEEB');
+  gradient.addColorStop(1,'#98FB98');
+  ctx.fillStyle=gradient;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='rgba(255,255,255,0.8)';
+  const cloudOffset=(score*0.5)%200;
+  for (let i=0;i<4;i++) {
+    const x=i*200 - cloudOffset;
+    ctx.beginPath();
+    ctx.arc(x,60,20,0,Math.PI*2);
+    ctx.arc(x+20,60,25,0,Math.PI*2);
+    ctx.arc(x+40,60,20,0,Math.PI*2);
+    ctx.fill();
+  }
+}
+function drawGround() {
+  ctx.fillStyle='#228B22';
+  ctx.fillRect(0,groundY,canvas.width,canvas.height - groundY);
+  ctx.fillStyle='#32CD32';
+  for (let x=0;x<canvas.width;x+=20) {
+    ctx.fillRect(x,groundY,2,5);
+    ctx.fillRect(x+5,groundY,2,3);
+    ctx.fillRect(x+10,groundY,2,4);
+    ctx.fillRect(x+15,groundY,2,6);
+  }
+}
+function drawPlayer() {
+  ctx.fillStyle=player.color;
+  if (player.pixelData) {
+    const pixelSize=4;
+    player.pixelData.forEach((row, yIdx) => {
+      for (let xIdx=0; xIdx<row.length; xIdx++) {
+        if (row[xIdx]!==' ') {
+          ctx.fillStyle='#00FF00'; // Or customize per pixel if needed
+          ctx.fillRect(player.x + xIdx * pixelSize, player.y + yIdx*pixelSize, pixelSize, pixelSize);
+        }
+      }
+    });
+  } else {
+    ctx.fillRect(player.x,player.y,player.width,player.height);
+  }
+}
+function drawObstacles() {
+  ctx.fillStyle='#8B4513';
+  obstacles.forEach(o => {
+    ctx.fillRect(o.x,o.y,o.width,o.height);
+  });
+}
+function drawCoins() {
+  gameCoins.forEach(c => {
+    if (!c.collected) {
+      ctx.save();
+      ctx.translate(c.x + c.width/2, c.y + c.height/2);
+      ctx.rotate(c.rotation);
+      ctx.fillStyle='#FFD700';
+      ctx.fillRect(-c.width/2,-c.height/2,c.width,c.height);
+      ctx.restore();
+    }
+  });
+}
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.globalAlpha=p.life/p.maxLife;
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x-2,p.y-2,4,4);
+  });
+  ctx.globalAlpha=1;
+}
+function drawGoblins() {
+  goblins.forEach(g => {
+    ctx.fillStyle='green';
+    ctx.fillRect(g.x,g.y,g.width,g.height);
+  });
+}
+function drawLives() {
+  // Already handled with DOM images
+}
+
+// ==================== Start game loop ====================
 gameLoop();
 </script>
 </body>
