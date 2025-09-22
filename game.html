@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>crisp-game-lib</title>
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height,
+    user-scalable=no, initial-scale=1, maximum-scale=1"
+    />
+    <script src="https://unpkg.com/sounds-some-sounds@3.1.1/build/index.js"></script>
+    <script src="https://unpkg.com/gif-capture-canvas@1.1.0/build/index.js"></script>
+    <script src="https://unpkg.com/pixi.js@5.3.0/dist/pixi.min.js"></script>
+    <script src="https://unpkg.com/pixi-filters@3.1.1/dist/pixi-filters.js"></script>
+    <script src="https://unpkg.com/crisp-game-lib@1.4.0/docs/bundle.js"></script>
+
+<<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Stealth Game</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    background: #222;
+    color: #fff;
+  }
+  #gameCanvas {
+    display: block;
+    margin: 0 auto;
+    background: #444;
+  }
+  #overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2em;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    text-align: center;
+    display: none;
+    padding: 20px;
+  }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<div id="overlay"></div>
+<script>
+/*
+  Placeholder assets:
+  - Player: 'player.png' (replace with your asset)
+  - Disguises:
+    - Guard: 'guard.png'
+    - BarServer: 'barserver.png'
+    - Guest: 'guest.png'
+  - Enemy: 'enemy.png'
+  - Walls/Obstacles: 'wall.png'
+  
+  Replace image src with your assets.
+*/
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
+
+// Load assets (placeholders)
+const assets = {
+  player: new Image(),
+  guard: new Image(),
+  barServer: new Image(),
+  guest: new Image(),
+  enemy: new Image(),
+  wall: new Image()
+};
+assets.player.src = 'https://via.placeholder.com/32x32?text=P';
+assets.guard.src = 'https://via.placeholder.com/32x32?text=G';
+assets.barServer.src = 'https://via.placeholder.com/32x32?text=B';
+assets.guest.src = 'https://via.placeholder.com/32x32?text=U';
+assets.enemy.src = 'https://via.placeholder.com/32x32?text=E';
+assets.wall.src = 'https://via.placeholder.com/64x64?text=W';
+
+// Game states
+const GAME_STATE = {
+  PLAYING: 'playing',
+  VICTORY: 'victory',
+  GAMEOVER: 'gameover'
+};
+
+let gameState = GAME_STATE.PLAYING;
+
+// Player object
+const player = {
+  x: 50,
+  y: 50,
+  width: 32,
+  height: 32,
+  speed: 2.5,
+  disguise: 'guest', // current disguise type
+  disguiseSprite: null, // current disguise sprite
+  hasDisguise: false,
+  disguiseLevel: 0 // 0=guest,1=guard,2=barServer
+};
+
+// Disguise hierarchy
+const disguises = [
+  { name: 'guest', sprite: assets.guest, level: 0 },
+  { name: 'guard', sprite: assets.guard, level: 1 },
+  { name: 'barServer', sprite: assets.barServer, level: 2 }
+];
+
+// Initialize player's disguise sprite
+player.disguiseSprite = assets.guest;
+
+// Targets (enemies or VIPs)
+const targets = [
+  {
+    x: 700, y: 100,
+    width: 32, height: 32,
+    sprite: assets.guard,
+    isTarget: true,
+    alive: true
+  },
+  {
+    x: 700, y: 500,
+    width: 32, height: 32,
+    sprite: assets.guard,
+    isTarget: true,
+    alive: true
+  }
+];
+
+// Enemy patrols
+const enemies = [
+  {
+    x: 400,
+    y: 200,
+    width: 32,
+    height: 32,
+    sprite: assets.enemy,
+    path: [{x: 400, y: 200}, {x: 600, y: 200}],
+    speed: 1.5,
+    currentTargetIndex: 1
+  },
+  {
+    x: 200,
+    y: 400,
+    width: 32,
+    height: 32,
+    sprite: assets.enemy,
+    path: [{x: 200, y: 400}, {x: 200, y: 200}],
+    speed: 1.2,
+    currentTargetIndex: 1
+  }
+];
+
+// Walls / Obstacles
+const walls = [
+  { x: 300, y: 100, width: 64, height: 64 },
+  { x: 500, y: 400, width: 64, height: 64 }
+];
+
+// Keyboard controls
+const keys = {};
+
+window.addEventListener('keydown', (e) => {
+  keys[e.key.toLowerCase()] = true;
+  // Handle action keys
+  if (e.key.toLowerCase() === 'x') {
+    attemptDisguise();
+  }
+  if (e.key.toLowerCase() === 'k') {
+    removeDisguise();
+  }
+  if (e.key === 'Enter') {
+    if (gameState !== GAME_STATE.PLAYING) {
+      restartGame();
+    }
+  }
+  if (e.key.toLowerCase() === 'r') {
+    restartGame();
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  keys[e.key.toLowerCase()] = false;
+});
+
+// Utility functions
+function rectsOverlap(r1, r2) {
+  return !(r2.x > r1.x + r1.width ||
+           r2.x + r2.width < r1.x ||
+           r2.y > r1.y + r1.height ||
+           r2.y + r2.height < r1.y);
+}
+
+// Game functions
+function attemptDisguise() {
+  // Check if near a target or guard to disguise
+  for (let t of [...targets, ...enemies]) {
+    if (t.alive && rectsOverlap(player, t)) {
+      // Change disguise based on target
+      let disguiseObj = disguises.find(d => d.name === t.disguiseName);
+      if (disguiseObj) {
+        player.disguise = disguiseObj.name;
+        player.disguiseSprite = disguiseObj.sprite;
+        player.hasDisguise = true;
+        player.disguiseLevel = disguiseObj.level;
+        // Remove the target from level
+        t.alive = false;
+        checkVictory();
+        return;
+      }
+    }
+  }
+}
+
+function removeDisguise() {
+  // Remove disguise sprite (if any) when pressing K
+  player.disguise = 'guest';
+  player.disguiseSprite = assets.guest;
+  player.hasDisguise = false;
+  player.disguiseLevel = 0;
+}
+
+function checkVictory() {
+  if (targets.every(t => !t.alive)) {
+    gameState = GAME_STATE.VICTORY;
+    showOverlay('Victory! You eliminated the targets stealthily.\nPress Enter to play again.');
+  }
+}
+
+function showOverlay(text) {
+  overlay.innerHTML = text;
+  overlay.style.display = 'flex';
+}
+
+function hideOverlay() {
+  overlay.style.display = 'none';
+}
+
+function restartGame() {
+  // Reset all game variables
+  gameState = GAME_STATE.PLAYING;
+  // Reset player
+  player.x = 50;
+  player.y = 50;
+  player.disguise = 'guest';
+  player.disguiseSprite = assets.guest;
+  player.hasDisguise = false;
+  player.disguiseLevel = 0;
+  // Reset targets
+  for (let t of targets) {
+    t.alive = true;
+    // optionally reset positions if desired
+  }
+  // Reset other variables if needed
+  hideOverlay();
+}
+
+// Main game loop
+function gameLoop() {
+  if (gameState === GAME_STATE.PLAYING) {
+    update();
+  }
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// Update game state
+function update() {
+  handleMovement();
+  updateEnemies();
+  checkPlayerCaught();
+}
+
+// Handle player movement
+function handleMovement() {
+  let dx = 0, dy = 0;
+  if (keys['arrowup'] || keys['w']) dy -= player.speed;
+  if (keys['arrowdown'] || keys['s']) dy += player.speed;
+  if (keys['arrowleft'] || keys['a']) dx -= player.speed;
+  if (keys['arrowright'] || keys['d']) dx += player.speed;
+
+  // Check collisions with walls
+  const newX = player.x + dx;
+  const newY = player.y + dy;
+  const futureRect = { x: newX, y: newY, width: player.width, height: player.height };
+  let collision = false;
+  for (let wall of walls) {
+    if (rectsOverlap(futureRect, wall)) {
+      collision = true;
+      break;
+    }
+  }
+  if (!collision) {
+    player.x = newX;
+    player.y = newY;
+  }
+}
+
+// Update enemy patrols
+function updateEnemies() {
+  for (let enemy of enemies) {
+    const targetPos = enemy.path[enemy.currentTargetIndex];
+    const dx = targetPos.x - enemy.x;
+    const dy = targetPos.y - enemy.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < enemy.speed) {
+      // Arrived at target
+      enemy.x = targetPos.x;
+      enemy.y = targetPos.y;
+      // Switch to next target
+      enemy.currentTargetIndex = (enemy.currentTargetIndex + 1) % enemy.path.length;
+    } else {
+      enemy.x += (dx / dist) * enemy.speed;
+      enemy.y += (dy / dist) * enemy.speed;
+    }
+  }
+}
+
+// Check if player is caught
+function checkPlayerCaught() {
+  // If player is near an enemy or guard who sees them, game over
+  const playerRect = { x: player.x, y: player.y, width: player.width, height: player.height };
+
+  // Enemies: simple detection if close
+  for (let enemy of enemies) {
+    const enemyRect = { x: enemy.x, y: enemy.y, width: enemy.width, height: enemy.height };
+    const dx = enemy.x - player.x;
+    const dy = enemy.y - player.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 50) { // detection radius
+      // Player caught
+      gameOver();
+      return;
+    }
+  }
+
+  // Targets: if seen (simulate line of sight or radius)
+  for (let t of targets) {
+    if (t.alive) {
+      const dx = t.x - player.x;
+      const dy = t.y - player.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 40 && player.hasDisguise && player.disguiseLevel < 1) {
+        // If player is not disguised as guard or higher, caught
+        gameOver();
+        return;
+      }
+    }
+  }
+}
+
+// Game over handler
+function gameOver() {
+  gameState = GAME_STATE.GAMEOVER;
+  showOverlay('Game Over! You were caught.\nPress R to restart.');
+}
+
+// Draw everything
+function draw() {
+  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+  // Draw walls
+  for (let wall of walls) {
+    ctx.drawImage(assets.wall, wall.x, wall.y, wall.width, wall.height);
+  }
+
+  // Draw targets
+  for (let t of targets) {
+    if (t.alive) {
+      ctx.drawImage(t.sprite, t.x, t.y, t.width, t.height);
+    }
+  }
+
+  // Draw enemies
+  for (let e of enemies) {
+    ctx.drawImage(e.sprite, e.x, e.y, e.width, e.height);
+  }
+
+  // Draw player
+  ctx.drawImage(assets.player, player.x, player.y, player.width, player.height);
+  // Draw disguise sprite if different
+  if (player.hasDisguise && player.disguise !== 'guest') {
+    ctx.drawImage(player.disguiseSprite, player.x, player.y, player.width, player.height);
+  }
+
+  // If caught or victory, overlay is handled
+}
+
+// Initialize game
+showOverlay('Press Enter to Start');
+
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>>
+title = "";
+
+description = `
+`;
+
+characters = [];
+
+options = {};
+
+function update() {
+  if (!ticks) {
+  }
+}
+
+addEventListener("load", onLoad);
+</script>
+
+  </head>
+  <body style="background: #ddd"></body>
+</html>
